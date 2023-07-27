@@ -12,27 +12,27 @@ use serde::Deserialize;
 ///
 /// They are meant to be populated by parsing a data set metadata TOML file.
 #[derive(Debug, Deserialize)]
-struct Dataset {
-    clustering_max_dist: Option<f32>,
+pub struct Dataset {
+    pub clustering_max_dist: Option<f32>,
 
-    graph_set: GraphSet,
-    align_set: AlignSet,
+    pub graph_set: GraphSet,
+    pub align_set: AlignSet,
 }
 
 #[derive(Debug, Deserialize)]
-struct GraphSet {
-    fname: PathBuf,
-    num_seqs: Option<usize>,
-    avg_seq_len: Option<f32>,
-    avg_pairwise_dist: Option<f32>,
-    species: Option<Table>
+pub struct GraphSet {
+    pub fname: PathBuf,
+    pub num_seqs: Option<usize>,
+    pub avg_seq_len: Option<f32>,
+    pub avg_pairwise_dist: Option<f32>,
+    pub species: Option<Table>
 }
 
 #[derive(Debug, Deserialize)]
-struct AlignSet {
-    fname: PathBuf,
-    num_seqs: Option<usize>,
-    avg_seq_len: Option<f32>,
-    avg_pairwise_dist: Option<f32>,
-    species: Option<Table>
+pub struct AlignSet {
+    pub fname: PathBuf,
+    pub num_seqs: Option<usize>,
+    pub avg_seq_len: Option<f32>,
+    pub avg_pairwise_dist: Option<f32>,
+    pub species: Option<Table>
 }

@@ -14,3 +14,4 @@ spoa_rs = { path = "../spoa-rs" }
 toml = "0.7.6"
 serde = { version = "1.0.176", features = ["derive"] }
 walkdir = "2.3.3"
+anyhow = "1.0.72"
