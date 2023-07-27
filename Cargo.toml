@@ -10,8 +10,9 @@ chrono = { version = "0.4.26", features = ["clock"] }
 clap = { version = "4.3.19", features = ["derive"] }
 wait4 = "0.1.3"
 poasta = { path = "../poasta" }
-spoa_rs = { path = "../spoa-rs" }
+spoa_rs = { git = "https://github.com/broadinstitute/spoa-rs" }
 toml = "0.7.6"
 serde = { version = "1.0.176", features = ["derive"] }
 walkdir = "2.3.3"
 anyhow = "1.0.72"
+rayon = "1.7.0"
