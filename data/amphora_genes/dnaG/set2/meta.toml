@@ -1,23 +1,66 @@
-[clustering]
-max_dist = 0.01
+clustering_max_dist = 0.1
 
-[graph]
+[graph_set]
+fname = "graph_seq.fna.gz"
 num_seqs = 50
-avg_pairwise_dist = 0.0058788
-species = {
-    "Pseudomonas aeruginosa" = 46
-    "Pseudomonas aeruginosa LESB58" = 1
-    "Pseudomonas aeruginosa SJTD-1" = 1
-    "Pseudomonas aeruginosa PAO1H2O" = 1
-    "Pseudomonas aeruginosa MTB-1" = 1
-}
+avg_seq_len = 1746.0
+avg_pairwise_dist = 0.0620892
 
-[align]
-num_seqs = 114
-avg_min_dist_to_graph = 0.00183731
-species = {
-    "Pseudomonas aeruginosa" = 111
-    "Pseudomonas aeruginosa VRFPA04" = 1
-    "Pseudomonas sp. FDAARGOS_761" = 1
-    "Pseudomonas aeruginosa c7447m" = 1
-}
+[graph.species]
+"Klebsiella pneumoniae" = 14
+"Klebsiella quasipneumoniae" = 9
+"Klebsiella michiganensis" = 6
+"Klebsiella variicola" = 3
+"Raoultella ornithinolytica" = 3
+"Klebsiella oxytoca" = 2
+"Klebsiella pneumoniae subsp. pneumoniae" = 2
+"Klebsiella quasipneumoniae subsp. quasipneumoniae" = 2
+"Klebsiella aerogenes" = 2
+"Raoultella electrica" = 2
+"Raoultella planticola" = 1
+"Raoultella ornithinolytica B6" = 1
+"Klebsiella variicola subsp. variicola" = 1
+"Klebsiella huaxiensis" = 1
+"Klebsiella sp. PL-2018" = 1
+
+[align_set]
+fname = "align_seq.fna.gz"
+num_seqs = 288
+avg_seq_len = 1745.8
+avg_pairwise_dist = 0.0608731
+avg_min_dist_to_graph = 0.00396829
+
+[align.species]
+"Klebsiella pneumoniae" = 95
+"Klebsiella quasipneumoniae" = 43
+"Klebsiella variicola" = 32
+"Klebsiella michiganensis" = 28
+"Klebsiella aerogenes" = 26
+"Raoultella ornithinolytica" = 10
+"Klebsiella grimontii" = 8
+"Raoultella planticola" = 6
+"Klebsiella pneumoniae subsp. pneumoniae" = 5
+"Raoultella terrigena" = 4
+"Klebsiella quasipneumoniae subsp. quasipneumoniae" = 3
+"Klebsiella pasteurii" = 3
+"Klebsiella variicola subsp. variicola" = 2
+"Klebsiella quasivariicola" = 2
+"Klebsiella oxytoca" = 2
+"Klebsiella africana" = 2
+"Klebsiella pneumoniae subsp. rhinoscleromatis SB3432" = 1
+"Klebsiella michiganensis HKOPL1" = 1
+"Klebsiella sp. LTGPAF-6F" = 1
+"Klebsiella variicola subsp. tropica" = 1
+"Klebsiella sp. ZYC-1" = 1
+"Raoultella electrica" = 1
+"Raoultella sp. XY-1" = 1
+"Enterobacter sp. JUb54" = 1
+"Klebsiella sp. BDA134-6" = 1
+"Klebsiella quasipneumoniae subsp. similipneumoniae" = 1
+"Klebsiella sp. CTHL.F3a" = 1
+"Klebsiella sp. MPUS7" = 1
+"Klebsiella pneumoniae subsp. pneumoniae Kp13" = 1
+"Klebsiella michiganensis KCTC 1686" = 1
+"Raoultella sp. HC6" = 1
+"Klebsiella sp. A52" = 1
+"Raoultella sp. X13" = 1

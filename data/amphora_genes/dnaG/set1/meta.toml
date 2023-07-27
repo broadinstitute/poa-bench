@@ -1,23 +1,134 @@
-[clustering]
-max_dist = 0.01
+clustering_max_dist = 0.1
 
-[graph]
+[graph_set]
+fname = "graph_seq.fna.gz"
 num_seqs = 5
-avg_pairwise_dist = 0.0121124
-species = {
-    "Staphylococcus aureus" = 5
-}
+avg_seq_len = 1769.2
+avg_pairwise_dist = 0.0867336
 
-[align]
-num_seqs = 150
-avg_min_dist_to_graph = 0.00648957
-species = {
-    "Staphylococcus aureus" = 143
-    "Staphylococcus aureus subsp. aureus ECT-R 2" = 1
-    "Staphylococcus aureus subsp. aureus LGA251" = 1
-    "Staphylococcus aureus subsp. aureus Z172" = 1
-    "Staphylococcus aureus subsp. aureus 71193" = 1
-    "Staphylococcus aureus RF122" = 1
-    "Staphylococcus aureus subsp. aureus ST772-MRSA-V" = 1
-    "Staphylococcus aureus subsp. aureus JKD6159" = 1
-}
+[graph.species]
+"Enterobacter hormaechei" = 1
+"Enterobacter ludwigii" = 1
+"Citrobacter sp. MGH 55" = 1
+"Enterobacter sp. HK169" = 1
+"Citrobacter sp. RHB35-C21" = 1
+
+[align_set]
+fname = "align_seq.fna.gz"
+num_seqs = 417
+avg_seq_len = 1759.7
+avg_pairwise_dist = 0.0950897
+avg_min_dist_to_graph = 0.00244538
+
+[align.species]
+"Citrobacter freundii" = 48
+"Enterobacter hormaechei" = 45
+"Enterobacter cloacae" = 32
+"Enterobacter roggenkampii" = 32
+"Citrobacter braakii" = 24
+"Enterobacter asburiae" = 20
+"Citrobacter portucalensis" = 20
+"Enterobacter ludwigii" = 17
+"Enterobacter kobei" = 15
+"Leclercia adecarboxylata" = 12
+"Citrobacter cronae" = 9
+"Enterobacter mori" = 6
+"Enterobacter bugandensis" = 6
+"Lelliottia amnigena" = 6
+"Enterobacter hormaechei subsp. xiangfangensis" = 5
+"Citrobacter amalonaticus" = 5
+"Enterobacter cancerogenus" = 4
+"Citrobacter werkmanii" = 4
+"Atlantibacter hermannii" = 4
+"Enterobacter hormaechei subsp. steigerwaltii" = 3
+"Enterobacter cloacae complex sp." = 3
+"Enterobacter sp. BIDMC100" = 3
+"Leclercia sp. Colony189" = 2
+"Citrobacter youngae" = 2
+"Citrobacter farmeri" = 2
+"Citrobacter pasteurii" = 2
+"Enterobacter sp. BIDMC 29" = 2
+"Enterobacter sp. JBIWA003" = 1
+"Enterobacter soli" = 1
+"Leclercia sp. 29361" = 1
+"Enterobacter sp. LU1" = 1
+"Enterobacter chengduensis" = 1
+"Citrobacter sp. RHBSTW-01013" = 1
+"Citrobacter sp. R56" = 1
+"Enterobacter sp. 638" = 1
+"Enterobacter sp. BWH 37" = 1
+"Enterobacter sp. YSU" = 1
+"Enterobacter huaxiensis" = 1
+"Leclercia sp. W6" = 1
+"Enterobacter cloacae subsp. cloacae ATCC 13047" = 1
+"Citrobacter sp. RHBSTW-00944" = 1
+"Citrobacter sp. RHB20-C15" = 1
+"Enterobacter cloacae complex sp. FDA-CDC-AR_0164" = 1
+"Citrobacter sp. RHBSTW-00424" = 1
+"Enterobacter cloacae complex sp. ECL404" = 1
+"Enterobacter sp. Colony194" = 1
+"Leclercia sp. 119287" = 1
+"Enterobacter sp. S-33" = 1
+"Atlantibacter subterranea" = 1
+"Citrobacter freundii ATCC 8090 = MTCC 1658 = NBRC 12681" = 1
+"Enterobacter cloacae complex sp. ECL352" = 1
+"Leclercia pneumoniae" = 1
+"Enterobacter cloacae subsp. dissolvens SDM" = 1
+"Citrobacter sp. S171" = 1
+"Citrobacter freundii complex sp. CFNIH2" = 1
+"Citrobacter sp. BIDMC107" = 1
+"Enterobacter pseudoroggenkampii" = 1
+"Citrobacter rodentium ICC168" = 1
+"Enterobacter cloacae complex sp. ECL414" = 1
+"Enterobacter sp. JBIWA008" = 1
+"Enterobacter sp. RHBSTW-00975" = 1
+"Citrobacter sp. Colony219" = 1
+"Citrobacter amalonaticus Y19" = 1
+"Leclercia sp. G3L" = 1
+"Enterobacter cloacae complex sp. ECNIH7" = 1
+"unidentified bacterial endosymbiont" = 1
+"Citrobacter sp. Colony322" = 1
+"Enterobacter sp. Crenshaw" = 1
+"Citrobacter sp. H12-3-2" = 1
+"Citrobacter sp. TSA-1" = 1
+"Citrobacter sp. LUTT5" = 1
+"Enterobacter sp. SES19" = 1
+"Enterobacter quasiroggenkampii" = 1
+"Enterobacter sp. E20" = 1
+"Enterobacter cloacae subsp. cloacae" = 1
+"Enterobacter sp. AN-K1" = 1
+"Citrobacter sp. CFNIH10" = 1
+"Citrobacter sp. RHBSTW-00570" = 1
+"Lelliottia sp. WB101" = 1
+"Citrobacter sp. CRE-46" = 1
+"Citrobacter sedlakii" = 1
+"Lelliottia sp. AC1" = 1
+"Enterobacter sp. T2" = 1
+"Enterobacter sp. 18A13" = 1
+"Enterobacter cloacae complex sp. R_G8" = 1
+"Citrobacter sp. 21OH12SH02A-Citro" = 1
+"Citrobacter tructae" = 1
+"Citrobacter sp. RHBSTW-00986" = 1
+"Citrobacter sp. RHB21-C01" = 1
+"Enterobacter sp. DNB-S2" = 1
+"Citrobacter arsenatis" = 1
+"Citrobacter sp. 172116965" = 1
+"Citrobacter sp. FDAARGOS_156" = 1
+"Citrobacter sp. SX212" = 1
+"Enterobacter chuandaensis" = 1
+"Citrobacter sp. RHB25-C09" = 1
+"Enterobacter sp. SGAir0187" = 1
+"Enterobacter sp. RHBSTW-00422" = 1
+"Citrobacter sp. RHB36-C18" = 1
+"Enterobacter hormaechei subsp. hoffmannii" = 1
+"Enterobacter sp. E76" = 1
+"Enterobacter oligotrophicus" = 1
+"Leclercia sp. J807" = 1
+"Enterobacter sichuanensis" = 1
+"Citrobacter sp. RHB35-C17" = 1
+"Enterobacter sp. RHBSTW-00994" = 1
+"Citrobacter sp. RHBSTW-00524" = 1
+"Enterobacter sp. N18-03635" = 1
+"Enterobacter sp. DSM 30060" = 1
+"Enterobacter sp. CP102" = 1
+"Enterobacter sp. JBIWA005" = 1
