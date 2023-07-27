@@ -6,7 +6,7 @@ num_seqs = 50
 avg_seq_len = 1990.1
 avg_pairwise_dist = 0.311364
 
-[graph.species]
+[graph_set.species]
 "Flavobacterium psychrophilum" = 1
 "Flavobacterium sp. KACC 22763" = 1
 "Cellulophaga sp. HaHa_2_95" = 1
@@ -65,7 +65,7 @@ avg_seq_len = 1999.0
 avg_pairwise_dist = 0.322235
 avg_min_dist_to_graph = 0.140949
 
-[align.species]
+[align_set.species]
 "Flavobacterium psychrophilum" = 6
 "Muricauda aquimarina" = 2
 "Winogradskyella forsetii" = 2

@@ -6,7 +6,7 @@ num_seqs = 50
 avg_seq_len = 1770.4
 avg_pairwise_dist = 0.198725
 
-[graph.species]
+[graph_set.species]
 "Streptococcus pneumoniae" = 17
 "Streptococcus oralis" = 8
 "Streptococcus sanguinis" = 6
@@ -31,7 +31,7 @@ avg_seq_len = 1765.2
 avg_pairwise_dist = 0.135396
 avg_min_dist_to_graph = 0.0298927
 
-[align.species]
+[align_set.species]
 "Streptococcus pneumoniae" = 53
 "Streptococcus gordonii" = 8
 "Streptococcus oralis" = 5

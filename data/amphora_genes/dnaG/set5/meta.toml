@@ -6,7 +6,7 @@ num_seqs = 50
 avg_seq_len = 1422.6
 avg_pairwise_dist = 0.281942
 
-[graph.species]
+[graph_set.species]
 "Natrarchaeobaculum sulfurireducens" = 2
 "Haloferax alexandrinus" = 2
 "Natronococcus sp. CG52" = 1
@@ -63,7 +63,7 @@ avg_seq_len = 1413.6
 avg_pairwise_dist = 0.27936
 avg_min_dist_to_graph = 0.114279
 
-[align.species]
+[align_set.species]
 "Halapricum desulfuricans" = 3
 "Haloplanus rubicundus" = 2
 "Halomicrobium salinisoli" = 2

@@ -6,7 +6,7 @@ num_seqs = 50
 avg_seq_len = 1746.0
 avg_pairwise_dist = 0.0620892
 
-[graph.species]
+[graph_set.species]
 "Klebsiella pneumoniae" = 14
 "Klebsiella quasipneumoniae" = 9
 "Klebsiella michiganensis" = 6
@@ -30,7 +30,7 @@ avg_seq_len = 1745.8
 avg_pairwise_dist = 0.0608731
 avg_min_dist_to_graph = 0.00396829
 
-[align.species]
+[align_set.species]
 "Klebsiella pneumoniae" = 95
 "Klebsiella quasipneumoniae" = 43
 "Klebsiella variicola" = 32
