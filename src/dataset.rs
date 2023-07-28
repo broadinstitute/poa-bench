@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use toml::Table;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Represents a single benchmark data set
 ///
@@ -11,7 +11,7 @@ use serde::Deserialize;
 /// pairwise distances, etc.
 ///
 /// They are meant to be populated by parsing a data set metadata TOML file.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DatasetConfig {
     pub clustering_max_dist: Option<f32>,
 
@@ -19,7 +19,7 @@ pub struct DatasetConfig {
     pub align_set: AlignSet,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct GraphSet {
     pub fname: PathBuf,
     pub num_seqs: Option<usize>,
@@ -28,7 +28,7 @@ pub struct GraphSet {
     pub species: Option<Table>
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AlignSet {
     pub fname: PathBuf,
     pub num_seqs: Option<usize>,

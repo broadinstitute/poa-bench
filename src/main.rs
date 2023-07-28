@@ -7,10 +7,14 @@ use clap::{command, Parser, Subcommand, Args};
 use walkdir::WalkDir;
 use anyhow::{Result, Context};
 use rayon::prelude::*;
+use core_affinity;
+use rayon::ThreadPoolBuilder;
 
 use crate::dataset::DatasetConfig;
+use crate::jobs::{Algorithm, Job};
 
 mod dataset;
+mod jobs;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -30,6 +34,16 @@ enum CliSubcommand {
 
 #[derive(Args, Debug, Clone)]
 struct BenchArgs {
+    /// Specify which algorithms to run, options include poasta and spoa. To specify multiple,
+    /// separate them by spaces
+    #[clap(value_enum, short, long, num_args=0..)]
+    algorithms: Vec<Algorithm>,
+
+    /// Number of parallel threads to start. This number will include the main orchestrator
+    /// process, so the number of actual worker threads will be one less than the number specified.
+    #[clap(short = 'j', long, default_value="2")]
+    parallel: usize,
+
     #[clap(short, long, default_value="data/")]
     dataset_dir: PathBuf,
 
@@ -77,7 +91,8 @@ impl From<FromUtf8Error> for POABenchError {
 
 /// A type that combines the data set name (inferred from its path) and the configuration (read
 /// from the TOML file)
-struct Dataset(String, PathBuf, DatasetConfig);
+#[derive(Clone, Debug)]
+pub struct Dataset(String, PathBuf, DatasetConfig);
 
 impl Dataset {
     fn output_dir(&self, base_output_path: &Path) -> PathBuf {
@@ -145,6 +160,10 @@ fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<()> {
 }
 
 
+fn run_job(job: &Job) {
+    eprintln!("JOB algorithm: {:?}, dataset: {:?}", job.algorithm, job.dataset.0);
+}
+
 
 fn bench(bench_args: &BenchArgs) -> Result<()> {
     eprintln!("Finding data sets...");
@@ -174,6 +193,60 @@ fn bench(bench_args: &BenchArgs) -> Result<()> {
 
     eprintln!("Building graphs...");
     build_graphs(&bench_args.output_dir, &datasets)?;
+
+    eprintln!("Building job list...");
+    let algorithms: &[Algorithm] = if bench_args.algorithms.len() > 0 { &bench_args.algorithms } else { jobs::ALL_ALGORITHMS };
+
+    let mut jobs = Vec::new();
+    for algorithm in algorithms {
+        for dataset in &datasets {
+            jobs.push(Job {
+                algorithm: *algorithm,
+                dataset,
+            })
+        }
+    }
+
+    let mut cores = core_affinity::get_core_ids()
+        .unwrap()
+        .into_iter()
+        .take(std::cmp::max(2, bench_args.parallel));
+
+    let orchestrator_core = cores.next().unwrap();
+    core_affinity::set_for_current(orchestrator_core);
+
+    let worker_cores: Vec<_> = cores.collect();
+
+    std::thread::scope(|scope| {
+        let pool = ThreadPoolBuilder::new()
+            .num_threads(worker_cores.len())
+            .spawn_handler(|worker| {
+                // Configure thread to run
+                let mut b = std::thread::Builder::new();
+                if let Some(name) = worker.name() {
+                    b = b.name(name.to_owned());
+                }
+                if let Some(stack_size) = worker.stack_size() {
+                    b = b.stack_size(stack_size);
+                }
+
+                // Spawn the thread, and pin it to desired core
+                b.spawn_scoped(scope, || {
+                    core_affinity::set_for_current(worker_cores[worker.index()]);
+
+                    worker.run()
+                })?;
+
+                Ok(())
+            })
+            .build()?;
+
+        for job in &jobs {
+            pool.install(|| run_job(job));
+        }
+
+        anyhow::Ok(())
+    })?;
 
     Ok(())
 }

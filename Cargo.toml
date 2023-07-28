@@ -16,3 +16,4 @@ serde = { version = "1.0.176", features = ["derive"] }
 walkdir = "2.3.3"
 anyhow = "1.0.72"
 rayon = "1.7.0"
+core_affinity = "0.8.0"
