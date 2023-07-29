@@ -37,3 +37,4 @@ pub struct AlignSet {
     pub avg_min_dist_to_graph: Option<f32>,
     pub species: Option<Table>
 }
+

@@ -1,38 +1,37 @@
 use std::{fs, io, process, fmt};
+use std::convert::identity;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::fs::File;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::string::FromUtf8Error;
+use std::sync::mpsc;
+
 use clap::{command, Parser, Subcommand, Args};
 use walkdir::WalkDir;
 use anyhow::{Result, Context};
 use rayon::prelude::*;
 use core_affinity;
+use core_affinity::CoreId;
+use flate2::read::{GzDecoder, GzEncoder};
 use rayon::ThreadPoolBuilder;
+use noodles::fasta;
+use poasta::aligner::PoastaAligner;
+use poasta::aligner::scoring::GapAffine;
+use poasta::errors::PoastaError;
+use poasta::graphs::AlignableGraph;
+use poasta::graphs::poa::POAGraphWithIx;
 
 use crate::dataset::DatasetConfig;
-use crate::jobs::{Algorithm, Job};
+use crate::jobs::{Algorithm, Job, JobResult};
 
 mod dataset;
 mod jobs;
+mod bench;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about)]
-struct CliParser {
-    #[command(subcommand)]
-    subcommand: CliSubcommand,
-}
-
-#[derive(Subcommand, Debug, Clone)]
-enum CliSubcommand {
-    /// Main entry point for the benchmark runner
-    Bench(BenchArgs),
-
-    /// Runs an individual algorithm on a data set
-    RunJob, // TODO: runner args
-}
-
-#[derive(Args, Debug, Clone)]
 struct BenchArgs {
     /// Specify which algorithms to run, options include poasta and spoa. To specify multiple,
     /// separate them by spaces
@@ -54,8 +53,10 @@ struct BenchArgs {
 #[derive(Debug)]
 enum POABenchError {
     IOError(io::Error),
+    SendError(mpsc::SendError<JobResult>),
     Utf8Error(FromUtf8Error),
     BuildGraphError(String),
+    PoastaError(PoastaError),
 }
 
 impl Error for POABenchError {
@@ -69,10 +70,14 @@ impl Display for POABenchError {
         match self {
             Self::IOError(source) =>
                 fmt::Display::fmt(source, f),
+            Self::SendError(source) =>
+                fmt::Display::fmt(source, f),
             Self::Utf8Error(source) =>
                 fmt::Display::fmt(source, f),
             Self::BuildGraphError(stderr) =>
-                write!(f, "Could not build graph for data set! Stderr: {}", stderr)
+                write!(f, "Could not build graph for data set! Stderr: {}", stderr),
+            Self::PoastaError(source) =>
+                fmt::Display::fmt(source, f)
         }
     }
 }
@@ -86,6 +91,18 @@ impl From<io::Error> for POABenchError {
 impl From<FromUtf8Error> for POABenchError {
     fn from(value: FromUtf8Error) -> Self {
         Self::Utf8Error(value)
+    }
+}
+
+impl From<PoastaError> for POABenchError {
+    fn from(value: PoastaError) -> Self {
+        Self::PoastaError(value)
+    }
+}
+
+impl From<mpsc::SendError<JobResult>> for POABenchError {
+    fn from(value: mpsc::SendError<JobResult>) -> Self {
+        Self::SendError(value)
     }
 }
 
@@ -110,6 +127,27 @@ impl Dataset {
     fn align_sequences_fname(&self) -> PathBuf {
         self.1.join(&self.2.align_set.fname)
     }
+
+    fn load(&self, base_dir: &Path) -> Result<LoadedDataset, POABenchError> {
+        let graph_file = File::open(self.graph_output_fname(base_dir))
+            .map(BufReader::new)?;
+        let graph = poasta::io::load_graph(graph_file)?;
+
+        let mut seq_file = File::open(self.align_sequences_fname())
+            .map(GzDecoder::new)
+            .map(BufReader::new)
+            .map(fasta::Reader::new)?;
+
+        let sequences: Vec<_> = seq_file.records().filter_map(Result::ok).collect();
+
+        Ok(LoadedDataset { graph, sequences })
+    }
+}
+
+
+struct LoadedDataset {
+    pub graph: POAGraphWithIx,
+    pub sequences: Vec<fasta::Record>,
 }
 
 
@@ -147,9 +185,7 @@ fn build_graph_with_poasta(output_dir: &Path, dataset: &Dataset) -> Result<(), P
 
 fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<()> {
     let results: Vec<_> = datasets.par_iter()
-        .map(|dataset| {
-            build_graph_with_poasta(output_dir, dataset)
-        })
+        .map(|dataset| build_graph_with_poasta(output_dir, dataset))
         .collect();
 
     for (dataset, r) in datasets.iter().zip(results) {
@@ -159,13 +195,57 @@ fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<()> {
     Ok(())
 }
 
+fn perform_alignments_poasta<G: AlignableGraph>(dataset: &str, graph: &G, sequences: &[fasta::Record],
+                                                tx: &mpsc::Sender<JobResult>) -> Result<(), POABenchError> {
+    let scoring = GapAffine::new(4, 2, 6);
+    let mut aligner: PoastaAligner<GapAffine> = PoastaAligner::new(scoring);
 
-fn run_job(job: &Job) {
-    eprintln!("JOB algorithm: {:?}, dataset: {:?}", job.algorithm, job.dataset.0);
+    for seq in sequences {
+        let measured = bench::measure(|| {
+            aligner.align::<u32, usize, _, _, _>(graph, seq.sequence());
+        });
+
+        tx.send(JobResult {
+            algorithm: Algorithm::POASTA,
+            dataset: dataset.to_string(),
+            measured,
+        })?;
+    }
+
+    Ok(())
 }
 
 
-fn bench(bench_args: &BenchArgs) -> Result<()> {
+fn run_job(tx: mpsc::Sender<JobResult>, job: &Job) -> Result<()> {
+    eprintln!("JOB algorithm: {:?}, dataset: {:?}", job.algorithm, job.dataset.0);
+
+    match job.algorithm {
+        Algorithm::POASTA => {
+            let loaded_dataset = job.dataset.load(job.output_dir)?;
+
+            match loaded_dataset.graph {
+                POAGraphWithIx::U8(ref g) =>
+                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
+                POAGraphWithIx::U16(ref g) =>
+                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
+                POAGraphWithIx::U32(ref g) =>
+                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
+                POAGraphWithIx::USIZE(ref g) =>
+                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
+            }
+        },
+        Algorithm::SPOA => {
+            eprintln!("SPOA not implemented yet")
+        }
+    }
+
+    Ok(())
+}
+
+
+fn main() -> Result<()> {
+    let bench_args = BenchArgs::parse();
+
     eprintln!("Finding data sets...");
     let mut datasets = Vec::new();
     for entry in WalkDir::new(&bench_args.dataset_dir)
@@ -203,6 +283,7 @@ fn bench(bench_args: &BenchArgs) -> Result<()> {
             jobs.push(Job {
                 algorithm: *algorithm,
                 dataset,
+                output_dir: &bench_args.output_dir,
             })
         }
     }
@@ -216,6 +297,15 @@ fn bench(bench_args: &BenchArgs) -> Result<()> {
     core_affinity::set_for_current(orchestrator_core);
 
     let worker_cores: Vec<_> = cores.collect();
+    let (tx, rx) = mpsc::channel();
+
+    let receiver_thread = std::thread::spawn(move || {
+        core_affinity::set_for_current(orchestrator_core);
+
+        for result in rx {
+            eprintln!("Got result: {:?}", result);
+        }
+    });
 
     std::thread::scope(|scope| {
         let pool = ThreadPoolBuilder::new()
@@ -242,23 +332,16 @@ fn bench(bench_args: &BenchArgs) -> Result<()> {
             .build()?;
 
         for job in &jobs {
-            pool.install(|| run_job(job));
+            let job_tx = tx.clone();
+            pool.install(move || run_job(job_tx, job))?;
         }
+
+        drop(tx);
 
         anyhow::Ok(())
     })?;
 
-    Ok(())
-}
-
-
-fn main() -> Result<()> {
-    let args = CliParser::parse();
-
-    match args.subcommand {
-        CliSubcommand::Bench(ref bench_args) => bench(bench_args)?,
-        CliSubcommand::RunJob => eprintln!("Not implemented yet!")
-    }
+    receiver_thread.join().expect("Error in result writer thread!");
 
     Ok(())
 }

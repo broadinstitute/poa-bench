@@ -151,6 +151,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "time",
  "wasm-bindgen",
  "winapi",
@@ -545,8 +546,17 @@ version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ec5a0da9e505ec562008ecffa514f810bf131bf41de0c4a5c5d491b432b111f"
 dependencies = [
- "noodles-fasta",
+ "noodles-fasta 0.26.0",
  "noodles-fastq",
+]
+
+[[package]]
+name = "noodles"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7375dbfcd8a0f37bc8f9ac105614bc821860ed1bc085d2b2b0b4025fd8375c6"
+dependencies = [
+ "noodles-fasta 0.27.0",
 ]
 
 [[package]]
@@ -572,6 +582,18 @@ name = "noodles-fasta"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ebae7087afc126a9a5b96d381cf2d0ea334cbf3a57ba3773e94931d493922da"
+dependencies = [
+ "bytes",
+ "memchr",
+ "noodles-bgzf",
+ "noodles-core",
+]
+
+[[package]]
+name = "noodles-fasta"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8af3e2fd41a831ab9fbbbd33ce00ab2c1299d6548c13ffc30152ede4d10f6ea"
 dependencies = [
  "bytes",
  "memchr",
@@ -700,6 +722,9 @@ dependencies = [
  "chrono",
  "clap",
  "core_affinity",
+ "flate2",
+ "libc",
+ "noodles 0.46.0",
  "poasta",
  "rayon",
  "serde",
@@ -718,7 +743,7 @@ dependencies = [
  "bincode",
  "clap",
  "flate2",
- "noodles",
+ "noodles 0.45.0",
  "num",
  "petgraph",
  "rustc-hash",
