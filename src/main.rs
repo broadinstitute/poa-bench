@@ -1,11 +1,12 @@
 use std::{fs, process, thread};
 use std::fmt::Debug;
+use std::error::Error;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
 use clap::{Args, command, Parser, Subcommand};
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use rayon::prelude::*;
 use core_affinity;
 use core_affinity::CoreId;
@@ -186,6 +187,10 @@ fn bench(bench_args: BenchArgs) -> Result<(), POABenchError> {
         job_txs.push(job_txs[0].clone());
     }
 
+    let mut tsv_writer = csv::WriterBuilder::new()
+        .delimiter(b'\t')
+        .from_path(bench_args.output_dir.join("results.tsv"))?;
+
     thread::scope(|scope| {
         let mut job_iter = jobs.into_iter().zip(job_txs.into_iter());
 
@@ -206,10 +211,24 @@ fn bench(bench_args: BenchArgs) -> Result<(), POABenchError> {
             eprintln!("Got result: {:?}", result);
 
             match result {
-                JobResult::Measurement(algo, dataset, measured) => {
-                    // TODO: write to file
+                JobResult::Measurement(algo, dataset, graph_edges, seq_length, measured) => {
+                    tsv_writer.write_record(&[
+                        &dataset,
+                        algo.to_str(),
+                        &graph_edges.to_string(),
+                        &seq_length.to_string(),
+                        &measured.score.to_string(),
+                        &measured.runtime.to_string(),
+                        &measured.memory_initial.map_or(String::default(), |v| v.to_string()),
+                        &measured.memory_total.map_or(String::default(), |v| v.to_string()),
+                        &measured.memory.to_string(),
+                        &measured.time_start.to_string(),
+                        &measured.time_end.to_string()
+                    ])?;
                 },
                 JobResult::Finished(core) => {
+                    tsv_writer.flush()?;
+
                     if let Some(((algorithm, dataset), job_tx)) = job_iter.next() {
                         run_job(
                             scope, &proc_exe, &bench_args.datasets_dir, &bench_args.output_dir,
@@ -227,14 +246,18 @@ fn bench(bench_args: BenchArgs) -> Result<(), POABenchError> {
         Ok(())
     })?;
 
+    tsv_writer.flush()?;
+
     Ok(())
 }
 
-fn main() -> Result<(), POABenchError> {
+fn main() -> Result<(), Box<dyn Error>> {
     let args = CliArgs::parse();
 
     match args.command {
-        Command::Bench(bench_args) => bench(bench_args),
-        Command::Worker(worker_args) => worker::main(worker_args),
+        Command::Bench(bench_args) => bench(bench_args)?,
+        Command::Worker(worker_args) => worker::main(worker_args)?,
     }
+
+    Ok(())
 }

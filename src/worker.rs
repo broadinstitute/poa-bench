@@ -8,6 +8,7 @@ use poasta::graphs::poa::POAGraphWithIx;
 use poasta::aligner::PoastaAligner;
 use poasta::aligner::scoring::GapAffine;
 use noodles::fasta;
+use serde::ser::Error;
 
 use crate::bench;
 use crate::errors::POABenchError;
@@ -37,6 +38,7 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &str, graph: &G, sequen
     let mut aligner: PoastaAligner<GapAffine> = PoastaAligner::new(scoring);
 
     let memory_start = bench::get_maxrss();
+    let graph_edge_count = graph.edge_count();
 
     for seq in sequences {
         let measured = bench::measure(memory_start, || {
@@ -45,8 +47,13 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &str, graph: &G, sequen
             score
         })?;
 
-        let result = JobResult::Measurement(Algorithm::POASTA, dataset.to_string(), measured);
-        println!("{}", serde_json::to_string(&result)?)
+        let result = JobResult::Measurement(Algorithm::POASTA, dataset.to_string(), graph_edge_count, seq.sequence().len(), measured);
+        let json = match serde_json::to_string(&result) {
+            Ok(v) => v,
+            Err(e) => return Err(POABenchError::JSONError(e))
+        };
+
+        println!("{}", json)
     }
 
     Ok(())

@@ -13,10 +13,11 @@ pub enum POABenchError {
     Utf8Error(FromUtf8Error),
     BuildGraphError(String),
     PoastaError(PoastaError),
-    ParseResultError(serde_json::Error),
+    JSONError(serde_json::Error),
     ParseConfigError(toml::de::Error),
     WorkerError,
     MemoryResetError,
+    TSVError(csv::Error),
 }
 
 impl Error for POABenchError {
@@ -27,10 +28,11 @@ impl Error for POABenchError {
             Self::Utf8Error(source) => Some(source),
             Self::BuildGraphError(_) => None,
             Self::PoastaError(source) => Some(source),
-            Self::ParseResultError(source) => Some(source),
+            Self::JSONError(source) => Some(source),
             Self::ParseConfigError(source) => Some(source),
             Self::WorkerError => None,
             Self::MemoryResetError => None,
+            Self::TSVError(source) => Some(source),
         }
     }
 }
@@ -48,7 +50,7 @@ impl Display for POABenchError {
                 write!(f, "Could not build graph for data set! Stderr: {}", stderr),
             Self::PoastaError(source) =>
                 fmt::Display::fmt(source, f),
-            Self::ParseResultError(source) => {
+            Self::JSONError(source) => {
                 write!(f, "Could not parse job result: ")?;
                 fmt::Display::fmt(source, f)
             }
@@ -58,6 +60,10 @@ impl Display for POABenchError {
             },
             Self::WorkerError => write!(f, "A worker process did not exit properly!"),
             Self::MemoryResetError => write!(f, "Platform does not support resetting max_rss, memory usage measurements will be incorrect!"),
+            Self::TSVError(source) => {
+                write!(f, "Could not write results to TSV! ")?;
+                fmt::Display::fmt(source, f)
+            }
         }
     }
 }
@@ -88,12 +94,18 @@ impl From<mpsc::SendError<JobResult>> for POABenchError {
 
 impl From<serde_json::Error> for POABenchError {
     fn from(value: serde_json::Error) -> Self {
-        Self::ParseResultError(value)
+        Self::JSONError(value)
     }
 }
 
 impl From<toml::de::Error> for POABenchError {
     fn from(value: toml::de::Error) -> Self {
         Self::ParseConfigError(value)
+    }
+}
+
+impl From<csv::Error> for POABenchError {
+    fn from(value: csv::Error) -> Self {
+        Self::TSVError(value)
     }
 }
