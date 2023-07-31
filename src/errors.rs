@@ -16,6 +16,7 @@ pub enum POABenchError {
     ParseResultError(serde_json::Error),
     ParseConfigError(toml::de::Error),
     WorkerError,
+    MemoryResetError,
 }
 
 impl Error for POABenchError {
@@ -29,6 +30,7 @@ impl Error for POABenchError {
             Self::ParseResultError(source) => Some(source),
             Self::ParseConfigError(source) => Some(source),
             Self::WorkerError => None,
+            Self::MemoryResetError => None,
         }
     }
 }
@@ -54,7 +56,8 @@ impl Display for POABenchError {
                 write!(f, "Could not parse dataset config: ")?;
                 fmt::Display::fmt(source, f)
             },
-            Self::WorkerError => write!(f, "A worker process did not exit properly!")
+            Self::WorkerError => write!(f, "A worker process did not exit properly!"),
+            Self::MemoryResetError => write!(f, "Platform does not support resetting max_rss, memory usage measurements will be incorrect!"),
         }
     }
 }

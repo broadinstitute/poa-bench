@@ -34,7 +34,10 @@ pub enum JobResult {
     /// Variant to indicate new measurement results
     Measurement(Algorithm, String, Measured),
 
-    /// Variant to indicate the whole dataset has been processed and optionally indicates which 
+    /// Variant to indicate the whole dataset has been processed and optionally indicates which
     /// processor core is now free
-    Finished(Option<usize>)
+    Finished(Option<usize>),
+
+    /// Variant to indicate that a worker did not properly exit correctly
+    Error,
 }

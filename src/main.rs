@@ -1,22 +1,18 @@
-use std::{fmt, fs, io, process, thread};
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
+use std::{fs, process, thread};
+use std::fmt::Debug;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::string::FromUtf8Error;
 use std::sync::mpsc;
 
 use clap::{Args, command, Parser, Subcommand};
-use walkdir::WalkDir;
 use anyhow::{Context, Result};
 use rayon::prelude::*;
 use core_affinity;
 use core_affinity::CoreId;
 
-use poasta::errors::PoastaError;
 use errors::POABenchError;
-use crate::dataset::{Dataset, DatasetConfig, find_datasets};
-use crate::jobs::{Algorithm, Job, JobResult};
+use crate::dataset::{Dataset, find_datasets};
+use crate::jobs::{Algorithm, JobResult};
 
 mod errors;
 mod worker;
@@ -90,13 +86,13 @@ fn build_graph_with_poasta(output_dir: &Path, dataset: &Dataset) -> Result<(), P
 }
 
 
-fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<()> {
+fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<(), POABenchError> {
     let results: Vec<_> = datasets.par_iter()
         .map(|dataset| build_graph_with_poasta(output_dir, dataset))
         .collect();
 
-    for (dataset, r) in datasets.iter().zip(results) {
-        r.with_context(|| format!("Error for dataset: {:?}", dataset.name()))?
+    for (_, r) in datasets.iter().zip(results) {
+        r?
     }
 
     Ok(())
@@ -104,7 +100,7 @@ fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<()> {
 
 fn run_job<'scope, 'env>(scope: &'scope thread::Scope<'scope, 'env>, proc_exe: &'scope Path, datasets_dir: &'scope Path, output_dir: &'scope Path,
            algorithm: Algorithm, dataset: &'scope Dataset, core: Option<CoreId>, tx: mpsc::Sender<JobResult>
-) -> Result<()>
+)
 where
     'env: 'scope
 {
@@ -145,18 +141,16 @@ where
             }
         }
 
-        if child.wait().expect("Could not launch worker!").success() {
-            Ok(())
-        } else {
-            Err(POABenchError::WorkerError)
+        if !child.wait().expect("Could not launch worker!").success() {
+            tx.send(JobResult::Error)?
         }
-    });
 
-    anyhow::Ok(())
+        Ok::<(), POABenchError>(())
+    });
 }
 
 
-fn bench(bench_args: BenchArgs) -> Result<()> {
+fn bench(bench_args: BenchArgs) -> Result<(), POABenchError> {
     eprintln!("Finding data sets...");
     let datasets = find_datasets(&bench_args.datasets_dir)?;
 
@@ -201,7 +195,7 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
                 run_job(
                     scope, &proc_exe, &bench_args.datasets_dir, &bench_args.output_dir,
                     *algorithm, dataset, Some(*core), job_tx
-                )?;
+                );
             } else {
                 break;
             }
@@ -221,19 +215,22 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
                             scope, &proc_exe, &bench_args.datasets_dir, &bench_args.output_dir,
                             *algorithm, dataset, core.map(|v| CoreId { id: v }),
                             job_tx
-                        )?;
+                        );
                     }
+                },
+                JobResult::Error => {
+                    return Err(POABenchError::WorkerError);
                 }
             }
         }
 
-        anyhow::Ok(())
+        Ok(())
     })?;
 
-    anyhow::Ok(())
+    Ok(())
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), POABenchError> {
     let args = CliArgs::parse();
 
     match args.command {

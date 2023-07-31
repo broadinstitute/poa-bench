@@ -3,12 +3,15 @@
 //! All code in this module taken from https://github.com/pairwise-alignment/pa-bench
 //! and written by Ragnar Groot-Koerkamp and Daniel Liu
 
-use std::{path::Path, time::Instant};
+use std::{path::Path, process, time::Instant};
+use std::fs::File;
+use std::io::Write;
 
 use chrono::SubsecRound;
 use libc;
 
 use serde::{Serialize, Deserialize};
+use crate::errors::POABenchError;
 
 pub type Bytes = u64;
 
@@ -36,7 +39,9 @@ pub struct Measured {
 }
 
 /// F can return some state that is dropped only after the memory is measured.
-pub fn measure<F: FnOnce() -> usize>(f: F) -> Measured {
+pub fn measure<F: FnOnce() -> usize>(f: F) -> Result<Measured, POABenchError> {
+    reset_max_rss()?;
+
     let cpu_start = get_cpu();
     let cpu_freq_start = cpu_start.and_then(|c| get_cpu_freq(c));
     let memory_initial = get_maxrss();
@@ -52,7 +57,7 @@ pub fn measure<F: FnOnce() -> usize>(f: F) -> Measured {
     let cpu_end = get_cpu();
     let cpu_freq_end = cpu_end.and_then(|c| get_cpu_freq(c));
 
-    Measured {
+    Ok(Measured {
         score,
         runtime,
         memory_initial: Some(memory_initial),
@@ -64,7 +69,7 @@ pub fn measure<F: FnOnce() -> usize>(f: F) -> Measured {
         cpu_end,
         cpu_freq_start,
         cpu_freq_end,
-    }
+    })
 }
 
 /// Returns the maximum resident set size, i.e. the physical memory the thread
@@ -118,5 +123,22 @@ fn get_cpu() -> Option<i32> {
     #[cfg(target_os = "macos")]
     {
         None
+    }
+}
+
+fn reset_max_rss() -> Result<(), POABenchError> {
+    #[cfg(target_os = "linux")]
+    {
+        let pid = process::id();
+
+        // https://stackoverflow.com/questions/45361849/get-memory-high-water-mark-for-a-time-interval
+        let mut f = File::create(format!("/proc/{pid}/clear_refs"))?;
+        f.write(b"5")?;
+
+        Ok(())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err(POABenchError::MemoryResetError)
     }
 }

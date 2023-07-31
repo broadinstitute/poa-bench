@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Args;
+use core_affinity::CoreId;
 use poasta::graphs::AlignableGraph;
 use poasta::graphs::poa::POAGraphWithIx;
 use poasta::aligner::PoastaAligner;
@@ -40,7 +41,7 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &str, graph: &G, sequen
             let (score, _) = aligner.align::<u32, usize, _, _, _>(graph, seq.sequence());
 
             score
-        });
+        })?;
 
         let result = JobResult::Measurement(Algorithm::POASTA, dataset.to_string(), measured);
         println!("{}", serde_json::to_string(&result)?)
@@ -49,7 +50,11 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &str, graph: &G, sequen
     Ok(())
 }
 
-pub fn main(worker_args: WorkerArgs) -> Result<()> {
+pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
+    if let Some(core_id) = worker_args.core_id {
+        core_affinity::set_for_current(CoreId { id: core_id });
+    }
+
     let dataset = load_dataset(&worker_args.datasets_dir, &worker_args.dataset)?;
 
     match worker_args.algorithm {
