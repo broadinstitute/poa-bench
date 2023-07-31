@@ -14,6 +14,8 @@ pub type Bytes = u64;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Measured {
+    /// Alignment score
+    pub score: usize,
     /// Runtime in seconds.
     pub runtime: f32,
     /// max_rss after reading input file.
@@ -34,14 +36,14 @@ pub struct Measured {
 }
 
 /// F can return some state that is dropped only after the memory is measured.
-pub fn measure<T, F: FnOnce() -> T>(f: F) -> Measured {
+pub fn measure<F: FnOnce() -> usize>(f: F) -> Measured {
     let cpu_start = get_cpu();
     let cpu_freq_start = cpu_start.and_then(|c| get_cpu_freq(c));
     let memory_initial = get_maxrss();
     let time_start = chrono::Utc::now().trunc_subsecs(3);
     let start = Instant::now();
 
-    let state = f();
+    let score = f();
 
     let runtime = start.elapsed().as_secs_f32();
     let time_end = chrono::Utc::now().trunc_subsecs(3);
@@ -50,9 +52,8 @@ pub fn measure<T, F: FnOnce() -> T>(f: F) -> Measured {
     let cpu_end = get_cpu();
     let cpu_freq_end = cpu_end.and_then(|c| get_cpu_freq(c));
 
-    drop(state);
-
     Measured {
+        score,
         runtime,
         memory_initial: Some(memory_initial),
         memory_total: Some(memory_total),
@@ -71,7 +72,7 @@ pub fn measure<T, F: FnOnce() -> T>(f: F) -> Measured {
 pub fn get_maxrss() -> Bytes {
     let rusage = unsafe {
         let mut rusage = std::mem::MaybeUninit::uninit();
-        libc::getrusage(libc::RUSAGE_THREAD, rusage.as_mut_ptr());
+        libc::getrusage(libc::RUSAGE_SELF, rusage.as_mut_ptr());
         rusage.assume_init()
     };
     let maxrss = rusage.ru_maxrss as _;

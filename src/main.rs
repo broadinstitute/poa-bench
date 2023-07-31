@@ -1,36 +1,43 @@
-use std::{fs, io, process, fmt};
-use std::convert::identity;
+use std::{fmt, fs, io, process, thread};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::string::FromUtf8Error;
 use std::sync::mpsc;
 
-use clap::{command, Parser, Subcommand, Args};
+use clap::{Args, command, Parser, Subcommand};
 use walkdir::WalkDir;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use rayon::prelude::*;
 use core_affinity;
 use core_affinity::CoreId;
-use flate2::read::{GzDecoder, GzEncoder};
-use rayon::ThreadPoolBuilder;
-use noodles::fasta;
-use poasta::aligner::PoastaAligner;
-use poasta::aligner::scoring::GapAffine;
-use poasta::errors::PoastaError;
-use poasta::graphs::AlignableGraph;
-use poasta::graphs::poa::POAGraphWithIx;
 
-use crate::dataset::DatasetConfig;
+use poasta::errors::PoastaError;
+use errors::POABenchError;
+use crate::dataset::{Dataset, DatasetConfig, find_datasets};
 use crate::jobs::{Algorithm, Job, JobResult};
 
+mod errors;
+mod worker;
 mod dataset;
 mod jobs;
 mod bench;
 
 #[derive(Parser, Debug, Clone)]
+struct CliArgs {
+    #[command(subcommand)]
+    command: Command
+}
+
+#[derive(Subcommand, Debug, Clone)]
+enum Command {
+    Bench(BenchArgs),
+    Worker(worker::WorkerArgs),
+}
+
+
+#[derive(Args, Debug, Clone)]
 #[command(author, version, about)]
 struct BenchArgs {
     /// Specify which algorithms to run, options include poasta and spoa. To specify multiple,
@@ -44,110 +51,10 @@ struct BenchArgs {
     parallel: usize,
 
     #[clap(short, long, default_value="data/")]
-    dataset_dir: PathBuf,
+    datasets_dir: PathBuf,
 
     #[clap(short, long, default_value="output/")]
     output_dir: PathBuf,
-}
-
-#[derive(Debug)]
-enum POABenchError {
-    IOError(io::Error),
-    SendError(mpsc::SendError<JobResult>),
-    Utf8Error(FromUtf8Error),
-    BuildGraphError(String),
-    PoastaError(PoastaError),
-}
-
-impl Error for POABenchError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
-}
-
-impl Display for POABenchError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::IOError(source) =>
-                fmt::Display::fmt(source, f),
-            Self::SendError(source) =>
-                fmt::Display::fmt(source, f),
-            Self::Utf8Error(source) =>
-                fmt::Display::fmt(source, f),
-            Self::BuildGraphError(stderr) =>
-                write!(f, "Could not build graph for data set! Stderr: {}", stderr),
-            Self::PoastaError(source) =>
-                fmt::Display::fmt(source, f)
-        }
-    }
-}
-
-impl From<io::Error> for POABenchError {
-    fn from(value: io::Error) -> Self {
-        Self::IOError(value)
-    }
-}
-
-impl From<FromUtf8Error> for POABenchError {
-    fn from(value: FromUtf8Error) -> Self {
-        Self::Utf8Error(value)
-    }
-}
-
-impl From<PoastaError> for POABenchError {
-    fn from(value: PoastaError) -> Self {
-        Self::PoastaError(value)
-    }
-}
-
-impl From<mpsc::SendError<JobResult>> for POABenchError {
-    fn from(value: mpsc::SendError<JobResult>) -> Self {
-        Self::SendError(value)
-    }
-}
-
-/// A type that combines the data set name (inferred from its path) and the configuration (read
-/// from the TOML file)
-#[derive(Clone, Debug)]
-pub struct Dataset(String, PathBuf, DatasetConfig);
-
-impl Dataset {
-    fn output_dir(&self, base_output_path: &Path) -> PathBuf {
-        base_output_path.join(&self.0)
-    }
-
-    fn graph_output_fname(&self, base_dir: &Path) -> PathBuf {
-        self.output_dir(base_dir).join("graph.poasta")
-    }
-
-    fn graph_sequences_fname(&self) -> PathBuf {
-        self.1.join(&self.2.graph_set.fname)
-    }
-
-    fn align_sequences_fname(&self) -> PathBuf {
-        self.1.join(&self.2.align_set.fname)
-    }
-
-    fn load(&self, base_dir: &Path) -> Result<LoadedDataset, POABenchError> {
-        let graph_file = File::open(self.graph_output_fname(base_dir))
-            .map(BufReader::new)?;
-        let graph = poasta::io::load_graph(graph_file)?;
-
-        let mut seq_file = File::open(self.align_sequences_fname())
-            .map(GzDecoder::new)
-            .map(BufReader::new)
-            .map(fasta::Reader::new)?;
-
-        let sequences: Vec<_> = seq_file.records().filter_map(Result::ok).collect();
-
-        Ok(LoadedDataset { graph, sequences })
-    }
-}
-
-
-struct LoadedDataset {
-    pub graph: POAGraphWithIx,
-    pub sequences: Vec<fasta::Record>,
 }
 
 
@@ -161,12 +68,12 @@ fn build_graph_with_poasta(output_dir: &Path, dataset: &Dataset) -> Result<(), P
         let graph_meta = fs::metadata(output_fname)?;
 
         if seq_meta.modified()? <= graph_meta.modified()? {
-            eprintln!("Found up-to-date graph for dataset: {}", dataset.0);
+            eprintln!("Found up-to-date graph for dataset: {}", dataset.name());
             return Ok(());
         }
     }
 
-    eprintln!("Creating graph for dataset: {}", dataset.0);
+    eprintln!("Creating graph for dataset: {}", dataset.name());
 
     let process = process::Command::new("poasta")
         .arg("align")
@@ -189,87 +96,69 @@ fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<()> {
         .collect();
 
     for (dataset, r) in datasets.iter().zip(results) {
-        r.with_context(|| format!("Dataset: {:?}", dataset.0))?
+        r.with_context(|| format!("Error for dataset: {:?}", dataset.name()))?
     }
 
     Ok(())
 }
 
-fn perform_alignments_poasta<G: AlignableGraph>(dataset: &str, graph: &G, sequences: &[fasta::Record],
-                                                tx: &mpsc::Sender<JobResult>) -> Result<(), POABenchError> {
-    let scoring = GapAffine::new(4, 2, 6);
-    let mut aligner: PoastaAligner<GapAffine> = PoastaAligner::new(scoring);
+fn run_job<'scope, 'env>(scope: &'scope thread::Scope<'scope, 'env>, proc_exe: &'scope Path, datasets_dir: &'scope Path, output_dir: &'scope Path,
+           algorithm: Algorithm, dataset: &'scope Dataset, core: Option<CoreId>, tx: mpsc::Sender<JobResult>
+) -> Result<()>
+where
+    'env: 'scope
+{
+    eprintln!("STARTING JOB algorithm: {:?}, dataset: {:?}", algorithm, dataset.name());
 
-    for seq in sequences {
-        let measured = bench::measure(|| {
-            aligner.align::<u32, usize, _, _, _>(graph, seq.sequence());
-        });
+    scope.spawn(move || {
+        let mut command = process::Command::new(proc_exe);
 
-        tx.send(JobResult {
-            algorithm: Algorithm::POASTA,
-            dataset: dataset.to_string(),
-            measured,
-        })?;
-    }
+        command
+            .arg("worker")
+            .arg("-d")
+            .arg(datasets_dir)
+            .arg("-o")
+            .arg(output_dir);
 
-    Ok(())
-}
+        if let Some(core_id) = core {
+            command.arg("-c")
+                .arg(format!("{}", core_id.id));
+        }
 
+        command
+            .arg(dataset.name())
+            .arg(algorithm.to_str())
+            .stdout(process::Stdio::piped());
 
-fn run_job(tx: mpsc::Sender<JobResult>, job: &Job) -> Result<()> {
-    eprintln!("JOB algorithm: {:?}, dataset: {:?}", job.algorithm, job.dataset.0);
+        eprintln!("Running command: {:?}", command);
+        let mut child = command.spawn()?;
 
-    match job.algorithm {
-        Algorithm::POASTA => {
-            let loaded_dataset = job.dataset.load(job.output_dir)?;
+        let reader = BufReader::new(child.stdout.as_mut().unwrap());
 
-            match loaded_dataset.graph {
-                POAGraphWithIx::U8(ref g) =>
-                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
-                POAGraphWithIx::U16(ref g) =>
-                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
-                POAGraphWithIx::U32(ref g) =>
-                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
-                POAGraphWithIx::USIZE(ref g) =>
-                    perform_alignments_poasta(&job.dataset.0, g, &loaded_dataset.sequences, &tx)?,
+        for line in reader.lines() {
+            if let Ok(contents) = line {
+                let job_result: serde_json::Result<JobResult> = serde_json::from_str(&contents);
+                match job_result {
+                    Ok(result) => tx.send(result)?,
+                    Err(e) => eprintln!("ERROR Could not parse job result from line: {}\nERROR {}", contents, e)
+                }
             }
-        },
-        Algorithm::SPOA => {
-            eprintln!("SPOA not implemented yet")
         }
-    }
 
-    Ok(())
+        if child.wait().expect("Could not launch worker!").success() {
+            Ok(())
+        } else {
+            Err(POABenchError::WorkerError)
+        }
+    });
+
+    anyhow::Ok(())
 }
 
 
-fn main() -> Result<()> {
-    let bench_args = BenchArgs::parse();
-
+fn bench(bench_args: BenchArgs) -> Result<()> {
     eprintln!("Finding data sets...");
-    let mut datasets = Vec::new();
-    for entry in WalkDir::new(&bench_args.dataset_dir)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| !e.file_type().is_dir())
-    {
-        let fname = entry.file_name().to_string_lossy();
-
-        if fname.ends_with(".toml") {
-            let contents = fs::read_to_string(entry.path())
-                .with_context(|| format!("Could not read file {:?}!", entry.path()))?;
-            let dataset_cfg: DatasetConfig = toml::from_str(&contents)
-                .with_context(|| format!("Could not parse data set TOML! Filename: {:?}", entry.path()))?;
-
-            let dataset_dir = entry.path().parent().unwrap();
-            let dataset_name = dataset_dir
-                .strip_prefix(&bench_args.dataset_dir)?
-                .to_string_lossy().to_string();
-
-            eprintln!("Found dataset: {:?}", dataset_name);
-            datasets.push(Dataset(dataset_name, dataset_dir.to_owned(), dataset_cfg))
-        }
-    }
+    let datasets = find_datasets(&bench_args.datasets_dir)?;
 
     eprintln!("Building graphs...");
     build_graphs(&bench_args.output_dir, &datasets)?;
@@ -280,13 +169,12 @@ fn main() -> Result<()> {
     let mut jobs = Vec::new();
     for algorithm in algorithms {
         for dataset in &datasets {
-            jobs.push(Job {
-                algorithm: *algorithm,
-                dataset,
-                output_dir: &bench_args.output_dir,
-            })
+            jobs.push((algorithm, dataset))
         }
     }
+
+    let proc_exe = std::env::current_exe()
+        .expect("Could not obtain executable name!");
 
     let mut cores = core_affinity::get_core_ids()
         .unwrap()
@@ -298,50 +186,58 @@ fn main() -> Result<()> {
 
     let worker_cores: Vec<_> = cores.collect();
     let (tx, rx) = mpsc::channel();
+    let mut job_txs = Vec::with_capacity(jobs.len());
+    job_txs.push(tx);
+    for _ in &jobs {
+        job_txs.push(job_txs[0].clone());
+    }
 
-    let receiver_thread = std::thread::spawn(move || {
-        core_affinity::set_for_current(orchestrator_core);
+    thread::scope(|scope| {
+        let mut job_iter = jobs.into_iter().zip(job_txs.into_iter());
 
+        // Start initial jobs, limited to number of worker cores
+        for core in &worker_cores {
+            if let Some(((algorithm, dataset), job_tx)) = job_iter.next() {
+                run_job(
+                    scope, &proc_exe, &bench_args.datasets_dir, &bench_args.output_dir,
+                    *algorithm, dataset, Some(*core), job_tx
+                )?;
+            } else {
+                break;
+            }
+        }
+
+        // Receive results, and start new jobs when another finishes
         for result in rx {
             eprintln!("Got result: {:?}", result);
-        }
-    });
 
-    std::thread::scope(|scope| {
-        let pool = ThreadPoolBuilder::new()
-            .num_threads(worker_cores.len())
-            .spawn_handler(|worker| {
-                // Configure thread to run
-                let mut b = std::thread::Builder::new();
-                if let Some(name) = worker.name() {
-                    b = b.name(name.to_owned());
+            match result {
+                JobResult::Measurement(algo, dataset, measured) => {
+                    // TODO: write to file
+                },
+                JobResult::Finished(core) => {
+                    if let Some(((algorithm, dataset), job_tx)) = job_iter.next() {
+                        run_job(
+                            scope, &proc_exe, &bench_args.datasets_dir, &bench_args.output_dir,
+                            *algorithm, dataset, core.map(|v| CoreId { id: v }),
+                            job_tx
+                        )?;
+                    }
                 }
-                if let Some(stack_size) = worker.stack_size() {
-                    b = b.stack_size(stack_size);
-                }
-
-                // Spawn the thread, and pin it to desired core
-                b.spawn_scoped(scope, || {
-                    core_affinity::set_for_current(worker_cores[worker.index()]);
-
-                    worker.run()
-                })?;
-
-                Ok(())
-            })
-            .build()?;
-
-        for job in &jobs {
-            let job_tx = tx.clone();
-            pool.install(move || run_job(job_tx, job))?;
+            }
         }
-
-        drop(tx);
 
         anyhow::Ok(())
     })?;
 
-    receiver_thread.join().expect("Error in result writer thread!");
+    anyhow::Ok(())
+}
 
-    Ok(())
+fn main() -> Result<()> {
+    let args = CliArgs::parse();
+
+    match args.command {
+        Command::Bench(bench_args) => bench(bench_args),
+        Command::Worker(worker_args) => worker::main(worker_args),
+    }
 }

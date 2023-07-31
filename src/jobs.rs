@@ -11,18 +11,30 @@ pub enum Algorithm {
     SPOA
 }
 
-pub static ALL_ALGORITHMS: &'static [Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
-
-#[derive(Debug)]
-pub struct Job<'a> {
-    pub algorithm: Algorithm,
-    pub dataset: &'a Dataset,
-    pub output_dir: &'a Path,
+impl Algorithm {
+    pub fn to_str(&self) -> &str {
+        match self {
+            Self::POASTA => &"poasta",
+            Self::SPOA => &"spoa"
+        }
+    }
 }
 
+pub static ALL_ALGORITHMS: &'static [Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct JobResult {
+pub struct Job {
     pub algorithm: Algorithm,
     pub dataset: String,
-    pub measured: Measured,
+}
+
+/// Used for worker-orchestrator IPC
+#[derive(Debug, Serialize, Deserialize)]
+pub enum JobResult {
+    /// Variant to indicate new measurement results
+    Measurement(Algorithm, String, Measured),
+
+    /// Variant to indicate the whole dataset has been processed and optionally indicates which 
+    /// processor core is now free
+    Finished(Option<usize>)
 }

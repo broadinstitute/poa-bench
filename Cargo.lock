@@ -728,6 +728,7 @@ dependencies = [
  "poasta",
  "rayon",
  "serde",
+ "serde_json",
  "spoa_rs",
  "toml",
  "wait4",
