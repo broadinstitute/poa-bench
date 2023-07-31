@@ -36,8 +36,10 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &str, graph: &G, sequen
     let scoring = GapAffine::new(4, 2, 6);
     let mut aligner: PoastaAligner<GapAffine> = PoastaAligner::new(scoring);
 
+    let memory_start = bench::get_maxrss();
+
     for seq in sequences {
-        let measured = bench::measure(|| {
+        let measured = bench::measure(memory_start, || {
             let (score, _) = aligner.align::<u32, usize, _, _, _>(graph, seq.sequence());
 
             score

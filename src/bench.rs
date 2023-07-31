@@ -39,12 +39,11 @@ pub struct Measured {
 }
 
 /// F can return some state that is dropped only after the memory is measured.
-pub fn measure<F: FnOnce() -> usize>(f: F) -> Result<Measured, POABenchError> {
+pub fn measure<F: FnOnce() -> usize>(memory_start: Bytes, f: F) -> Result<Measured, POABenchError> {
     reset_max_rss()?;
 
     let cpu_start = get_cpu();
     let cpu_freq_start = cpu_start.and_then(|c| get_cpu_freq(c));
-    let memory_initial = get_maxrss();
     let time_start = chrono::Utc::now().trunc_subsecs(3);
     let start = Instant::now();
 
@@ -60,7 +59,7 @@ pub fn measure<F: FnOnce() -> usize>(f: F) -> Result<Measured, POABenchError> {
     Ok(Measured {
         score,
         runtime,
-        memory_initial: Some(memory_initial),
+        memory_initial: Some(memory_start),
         memory_total: Some(memory_total),
         memory,
         time_start,
