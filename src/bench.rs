@@ -52,7 +52,7 @@ pub fn measure<F: FnOnce() -> usize>(memory_start: Bytes, f: F) -> Result<Measur
     let runtime = start.elapsed().as_secs_f32();
     let time_end = chrono::Utc::now().trunc_subsecs(3);
     let memory_total = get_maxrss();
-    let memory = memory_total.saturating_sub(memory_initial);
+    let memory = memory_total.saturating_sub(memory_start);
     let cpu_end = get_cpu();
     let cpu_freq_end = cpu_end.and_then(|c| get_cpu_freq(c));
 
