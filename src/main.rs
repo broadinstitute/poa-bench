@@ -183,7 +183,7 @@ fn bench(bench_args: BenchArgs) -> Result<(), POABenchError> {
     let (tx, rx) = mpsc::channel();
     let mut job_txs = Vec::with_capacity(jobs.len());
     job_txs.push(tx);
-    for _ in &jobs {
+    for _ in &jobs[1..] {
         job_txs.push(job_txs[0].clone());
     }
 
