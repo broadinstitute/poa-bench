@@ -44,22 +44,6 @@ impl Dataset {
     pub fn align_sequences_fname(&self) -> PathBuf {
         self.1.join(&self.2.align_set.fname)
     }
-
-    pub fn load(&self, base_dir: &Path) -> Result<LoadedDataset, POABenchError> {
-        // Load the graph represented by the MSA created by SPOA, to keep the graphs
-        // consistent across tools
-        let graph = poasta::io::load_graph_from_fasta_msa(self.graph_msa_fname(base_dir))?;
-
-        let mut seq_file = fs::File::open(self.align_sequences_fname())
-            .map(GzDecoder::new)
-            .map(BufReader::new)
-            .map(fasta::Reader::new)?;
-
-        let sequences: Vec<_> = seq_file.records().filter_map(Result::ok).collect();
-
-        Ok(LoadedDataset { graph, sequences })
-
-    }
 }
 
 pub fn find_datasets(datasets_dir: &Path) -> Result<Vec<Dataset>, POABenchError> {

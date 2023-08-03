@@ -4,6 +4,7 @@
 //! and written by Ragnar Groot-Koerkamp and Daniel Liu
 
 use std::{path::Path, process, time::Instant};
+use std::fs::File;
 
 use chrono::SubsecRound;
 use libc;
