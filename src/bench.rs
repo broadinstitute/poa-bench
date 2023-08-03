@@ -3,7 +3,7 @@
 //! All code in this module taken from https://github.com/pairwise-alignment/pa-bench
 //! and written by Ragnar Groot-Koerkamp and Daniel Liu
 
-use std::{path::Path, time::Instant};
+use std::{path::Path, process, time::Instant};
 
 use chrono::SubsecRound;
 use libc;
