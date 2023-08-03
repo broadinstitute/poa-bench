@@ -5,6 +5,7 @@
 
 use std::{path::Path, process, time::Instant};
 use std::fs::File;
+use std::io::Write;
 
 use chrono::SubsecRound;
 use libc;
