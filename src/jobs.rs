@@ -1,8 +1,5 @@
-use std::path::{Path, PathBuf};
-use crate::Dataset;
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
-use noodles::fasta;
 use crate::bench::Measured;
 
 #[derive(Copy, Clone, Debug, ValueEnum, Serialize, Deserialize)]

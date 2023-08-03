@@ -98,10 +98,13 @@ pub fn load_dataset(datasets_dir: &Path, dataset_name: &str) -> Result<Dataset, 
     Ok(Dataset(dataset_name.to_string(), dataset_dir, dataset_cfg))
 }
 
+pub fn load_dataset_sequences(dataset: &Dataset) -> Result<Vec<fasta::Record>, POABenchError> {
+    let mut seq_file = fs::File::open(dataset.align_sequences_fname())
+        .map(GzDecoder::new)
+        .map(BufReader::new)
+        .map(fasta::Reader::new)?;
 
-pub struct LoadedDataset {
-    pub graph: POAGraphWithIx,
-    pub sequences: Vec<fasta::Record>,
+    Ok(seq_file.records().filter_map(Result::ok).collect())
 }
 
 

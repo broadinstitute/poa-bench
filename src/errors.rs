@@ -10,7 +10,7 @@ use crate::jobs::JobResult;
 pub enum POABenchError {
     IOError(io::Error),
     SendError(mpsc::SendError<JobResult>),
-    Utf8Error(FromUtf8Error),
+    Utf8Error(std::str::Utf8Error),
     BuildGraphError(String),
     PoastaError(PoastaError),
     JSONError(serde_json::Error),
@@ -76,6 +76,12 @@ impl From<io::Error> for POABenchError {
 
 impl From<FromUtf8Error> for POABenchError {
     fn from(value: FromUtf8Error) -> Self {
+        Self::Utf8Error(value.utf8_error())
+    }
+}
+
+impl From<std::str::Utf8Error> for POABenchError {
+    fn from(value: std::str::Utf8Error) -> Self {
         Self::Utf8Error(value)
     }
 }

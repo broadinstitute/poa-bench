@@ -3,9 +3,7 @@
 //! All code in this module taken from https://github.com/pairwise-alignment/pa-bench
 //! and written by Ragnar Groot-Koerkamp and Daniel Liu
 
-use std::{path::Path, process, time::Instant};
-use std::fs::File;
-use std::io::Write;
+use std::{path::Path, time::Instant};
 
 use chrono::SubsecRound;
 use libc;
@@ -87,20 +85,6 @@ pub fn get_maxrss() -> Bytes {
         // maxrss is in kilobytes
         maxrss * 1024
     }
-}
-
-pub fn set_limits(time: u64, mem: Bytes) {
-    let set = |res, limit| {
-        let rlimit = libc::rlimit {
-            rlim_cur: limit as _,
-            rlim_max: limit as _,
-        };
-        unsafe {
-            libc::setrlimit(res, &rlimit);
-        }
-    };
-    set(libc::RLIMIT_CPU, time);
-    set(libc::RLIMIT_DATA, mem);
 }
 
 fn get_cpu_freq(cur_cpu: i32) -> Option<f32> {
