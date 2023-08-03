@@ -73,7 +73,14 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
             (-score) as usize
         })?;
 
-        let result = JobResult::Measurement(Algorithm::SPOA, dataset.name().to_string(), graph_edge_count, seq.sequence().len(), measured);
+        let result = JobResult::Measurement(
+            Algorithm::SPOA,
+            dataset.name().to_string(),
+            graph_edge_count,
+            seq.name().to_string(),
+            seq.sequence().len(),
+            measured
+        );
         let json = match serde_json::to_string(&result) {
             Ok(v) => v,
             Err(e) => return Err(POABenchError::JSONError(e))
@@ -116,7 +123,15 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, se
             score
         })?;
 
-        let result = JobResult::Measurement(Algorithm::POASTA, dataset.name().to_string(), graph_edge_count, seq.sequence().len(), measured);
+        let result = JobResult::Measurement(
+            Algorithm::POASTA,
+            dataset.name().to_string(),
+            graph_edge_count,
+            seq.name().to_string(),
+            seq.sequence().len(),
+            measured
+        );
+
         let json = match serde_json::to_string(&result) {
             Ok(v) => v,
             Err(e) => return Err(POABenchError::JSONError(e))

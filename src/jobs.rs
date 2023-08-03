@@ -29,7 +29,7 @@ pub struct Job {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum JobResult {
     /// Variant to indicate new measurement results
-    Measurement(Algorithm, String, usize, usize, Measured),
+    Measurement(Algorithm, String, usize, String, usize, Measured),
 
     /// Variant to indicate the whole dataset has been processed and optionally indicates which
     /// processor core is now free

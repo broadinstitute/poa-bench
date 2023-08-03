@@ -246,11 +246,12 @@ fn bench(bench_args: BenchArgs) -> Result<(), POABenchError> {
             eprintln!("Got result: {:?}", result);
 
             match result {
-                JobResult::Measurement(algo, dataset, graph_edges, seq_length, measured) => {
+                JobResult::Measurement(algo, dataset, graph_edges, seq_name, seq_length, measured) => {
                     tsv_writer.write_record(&[
                         &dataset,
                         algo.to_str(),
                         &graph_edges.to_string(),
+                        &seq_name,
                         &seq_length.to_string(),
                         &measured.score.to_string(),
                         &measured.runtime.to_string(),
