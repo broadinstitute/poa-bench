@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use clap::Args;
 use core_affinity::CoreId;
+use flate2::read::GzDecoder;
 use poasta::graphs::AlignableGraph;
 use poasta::graphs::poa::POAGraphWithIx;
 use poasta::aligner::PoastaAligner;
@@ -38,6 +39,7 @@ fn make_graph_spoa(dataset: &Dataset) -> Result<spoa_rs::Graph, POABenchError> {
     eprintln!("Preparing SPOA graph for {:?}...", dataset.name());
     let graph_seq_fname = dataset.graph_sequences_fname();
     let mut reader = File::open(&graph_seq_fname)
+        .map(GzDecoder::new)
         .map(BufReader::new)
         .map(fasta::Reader::new)?;
 
