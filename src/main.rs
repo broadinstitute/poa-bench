@@ -1,7 +1,8 @@
 use std::{fs, process, thread};
 use std::fmt::Debug;
 use std::error::Error;
-use std::io::{BufRead, BufReader};
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
@@ -86,10 +87,44 @@ fn build_graph_with_poasta(output_dir: &Path, dataset: &Dataset) -> Result<(), P
     }
 }
 
+fn build_graph_with_spoa(output_dir: &Path, dataset: &Dataset) -> Result<(), POABenchError> {
+    let seq_fname = dataset.graph_sequences_fname();
+    let output_fname = dataset.graph_msa_fname(output_dir);
+    eprintln!("{:?}, {:?}", seq_fname, output_fname);
+
+    if output_fname.exists() {
+        let seq_meta = fs::metadata(seq_fname)?;
+        let graph_meta = fs::metadata(&output_fname)?;
+
+        if seq_meta.modified()? <= graph_meta.modified()? {
+            eprintln!("Found up-to-date graph for dataset: {}", dataset.name());
+            return Ok(());
+        }
+    }
+
+    eprintln!("Creating graph with SPOA for dataset: {}", dataset.name());
+
+    let process = process::Command::new("spoa")
+        .args(&["-l", "1", "-m", "0", "-n", "-4", "-g", "-8", "-e", "-2", "-q", "0", "-c", "0", "-r", "1"])
+        .arg(dataset.graph_sequences_fname())
+        .output()?;
+
+    if process.status.success() {
+        let mut ofile = File::create(&output_fname)
+            .map(BufWriter::new)?;
+        ofile.write_all(&process.stdout)?;
+
+        Ok(())
+    } else {
+        Err(POABenchError::BuildGraphError(String::from_utf8(process.stderr)?))
+    }
+
+}
+
 
 fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<(), POABenchError> {
     let results: Vec<_> = datasets.par_iter()
-        .map(|dataset| build_graph_with_poasta(output_dir, dataset))
+        .map(|dataset| build_graph_with_spoa(output_dir, dataset))
         .collect();
 
     for (_, r) in datasets.iter().zip(results) {

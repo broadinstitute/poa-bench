@@ -33,6 +33,10 @@ impl Dataset {
         self.output_dir(base_dir).join("graph.poasta")
     }
 
+    pub fn graph_msa_fname(&self, base_dir: &Path) -> PathBuf {
+        self.output_dir(base_dir).join("graph.msa.fasta")
+    }
+
     pub fn graph_sequences_fname(&self) -> PathBuf {
         self.1.join(&self.2.graph_set.fname)
     }
@@ -42,9 +46,9 @@ impl Dataset {
     }
 
     pub fn load(&self, base_dir: &Path) -> Result<LoadedDataset, POABenchError> {
-        let graph_file = fs::File::open(self.graph_output_fname(base_dir))
-            .map(BufReader::new)?;
-        let graph = poasta::io::load_graph(graph_file)?;
+        // Load the graph represented by the MSA created by SPOA, to keep the graphs
+        // consistent across tools
+        let graph = poasta::io::load_graph_from_fasta_msa(self.graph_msa_fname(base_dir))?;
 
         let mut seq_file = fs::File::open(self.align_sequences_fname())
             .map(GzDecoder::new)
