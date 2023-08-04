@@ -25,7 +25,7 @@ TODO
 
 #### Rust compiler
 
-POASTA is written in Rust, and to build and install it, you'll need a recent version of the Rust compiler. The
+POA-bench is written in Rust, and to build and install it, you'll need a recent version of the Rust compiler. The
 minimum supported Rust version is 1.70.
 
 1. Download and install `rustup`: https://rustup.rs/
