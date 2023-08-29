@@ -62,6 +62,7 @@ fn make_graph_spoa(dataset: &Dataset) -> Result<spoa_rs::Graph, POABenchError> {
 
 fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
     eprintln!("Performing alignments with SPOA for {:?}...", dataset.name());
+    bench::reset_max_rss()?;
     let memory_start = bench::get_maxrss();
     let graph_edge_count = graph.edge_count();
 

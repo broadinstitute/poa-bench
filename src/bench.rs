@@ -111,7 +111,7 @@ fn get_cpu() -> Option<i32> {
     }
 }
 
-fn reset_max_rss() -> Result<(), POABenchError> {
+pub fn reset_max_rss() -> Result<(), POABenchError> {
     #[cfg(target_os = "linux")]
     {
         let pid = process::id();
