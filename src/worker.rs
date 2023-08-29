@@ -55,15 +55,17 @@ fn make_graph_spoa(dataset: &Dataset) -> Result<spoa_rs::Graph, POABenchError> {
         graph.add_alignment(aln, seq);
     }
 
+    drop(engine);
+
     Ok(graph)
 }
 
 fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
     eprintln!("Performing alignments with SPOA for {:?}...", dataset.name());
-    let mut aligner = spoa_rs::AlignmentEngine::new_affine(spoa_rs::AlignmentType::kNW, 0, -4, -8, -2);
-
     let memory_start = bench::get_maxrss();
     let graph_edge_count = graph.edge_count();
+
+    let mut aligner = spoa_rs::AlignmentEngine::new_affine(spoa_rs::AlignmentType::kNW, 0, -4, -8, -2);
 
     for seq in sequences {
         let sequence = std::str::from_utf8(seq.sequence().as_ref())?;
@@ -155,6 +157,7 @@ pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
         Algorithm::POASTA => load_graph_and_align_poasta(&dataset, &worker_args.output_dir, &sequences)?,
         Algorithm::SPOA => {
             let graph = make_graph_spoa(&dataset)?;
+            std::thread::sleep(std::time::Duration::from_secs(1));
 
             perform_alignments_spoa(&dataset, &graph, &sequences)?;
         }
