@@ -121,9 +121,9 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, se
 
     for seq in sequences {
         let measured = bench::measure(memory_start, || {
-            let (score, _) = aligner.align::<u32, usize, _, _, _>(graph, seq.sequence());
+            let (score, _) = aligner.align::<u32, _, _>(graph, seq.sequence());
 
-            score
+            score.into()
         })?;
 
         let result = JobResult::Measurement(
