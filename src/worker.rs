@@ -11,6 +11,7 @@ use poasta::graphs::poa::POAGraphWithIx;
 use poasta::aligner::PoastaAligner;
 use poasta::aligner::scoring::GapAffine;
 use noodles::fasta;
+use poasta::bubbles::index::BubbleIndexBuilder;
 use serde::ser::Error;
 
 use crate::bench;
@@ -113,6 +114,9 @@ fn load_graph_and_align_poasta(dataset: &Dataset, output_dir: &Path, sequences: 
 
 
 fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+    let bubble_index = BubbleIndexBuilder::new(graph)
+        .build();
+
     let scoring = GapAffine::new(4, 2, 6);
     let mut aligner: PoastaAligner<GapAffine> = PoastaAligner::new(scoring);
 
@@ -121,7 +125,7 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, se
 
     for seq in sequences {
         let measured = bench::measure(memory_start, || {
-            let (score, _) = aligner.align::<u32, _, _>(graph, seq.sequence());
+            let (score, _) = aligner.align::<u32, _, _>(graph, &bubble_index, seq.sequence());
 
             score.into()
         })?;
