@@ -103,6 +103,7 @@ fn build_graph_with_spoa(output_dir: &Path, dataset: &Dataset) -> Result<(), POA
     }
 
     eprintln!("Creating graph with SPOA for dataset: {}", dataset.name());
+    fs::create_dir_all(dataset.output_dir(output_dir))?;
 
     let process = process::Command::new("spoa")
         .args(&["-l", "1", "-m", "0", "-n", "-4", "-g", "-8", "-e", "-2", "-q", "0", "-c", "0", "-r", "1"])

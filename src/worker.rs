@@ -12,7 +12,6 @@ use poasta::aligner::PoastaAligner;
 use poasta::aligner::scoring::GapAffine;
 use noodles::fasta;
 use poasta::bubbles::index::BubbleIndexBuilder;
-use serde::ser::Error;
 
 use crate::bench;
 use crate::errors::POABenchError;
@@ -71,10 +70,10 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
 
     for seq in sequences {
         let sequence = std::str::from_utf8(seq.sequence().as_ref())?;
-        let measured = bench::measure(memory_start, || {
-            let (score, _) = aligner.align(sequence, graph);
+        let (measured, alignment) = bench::measure(memory_start, || {
+            let (score, alignment) = aligner.align(sequence, graph);
 
-            (-score) as usize
+            ((-score) as usize, alignment)
         })?;
 
         let result = JobResult::Measurement(
@@ -121,13 +120,14 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, se
     let mut aligner: PoastaAligner<GapAffine> = PoastaAligner::new(scoring);
 
     let memory_start = bench::get_maxrss();
+    let graph_node_count = graph.node_count_with_start();
     let graph_edge_count = graph.edge_count();
 
     for seq in sequences {
-        let measured = bench::measure(memory_start, || {
-            let (score, _) = aligner.align::<u32, _, _>(graph, &bubble_index, seq.sequence());
+        let (measured, alignment) = bench::measure(memory_start, || {
+            let (score, alignment) = aligner.align::<u32, _, _>(graph, &bubble_index, seq.sequence());
 
-            score.into()
+            (score.into(), alignment)
         })?;
 
         let result = JobResult::Measurement(

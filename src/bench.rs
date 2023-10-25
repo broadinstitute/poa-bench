@@ -9,6 +9,7 @@ use std::io::Write;
 
 use chrono::SubsecRound;
 use libc;
+use poasta::aligner::Alignment;
 
 use serde::{Serialize, Deserialize};
 use crate::errors::POABenchError;
@@ -39,7 +40,7 @@ pub struct Measured {
 }
 
 /// F can return some state that is dropped only after the memory is measured.
-pub fn measure<F: FnOnce() -> usize>(memory_start: Bytes, f: F) -> Result<Measured, POABenchError> {
+pub fn measure<A, F: FnOnce() -> (usize, A)>(memory_start: Bytes, f: F) -> Result<(Measured, A), POABenchError> {
     reset_max_rss()?;
 
     let cpu_start = get_cpu();
@@ -47,7 +48,7 @@ pub fn measure<F: FnOnce() -> usize>(memory_start: Bytes, f: F) -> Result<Measur
     let time_start = chrono::Utc::now().trunc_subsecs(3);
     let start = Instant::now();
 
-    let score = f();
+    let (score, alignment) = f();
 
     let runtime = start.elapsed().as_secs_f32();
     let time_end = chrono::Utc::now().trunc_subsecs(3);
@@ -56,7 +57,7 @@ pub fn measure<F: FnOnce() -> usize>(memory_start: Bytes, f: F) -> Result<Measur
     let cpu_end = get_cpu();
     let cpu_freq_end = cpu_end.and_then(|c| get_cpu_freq(c));
 
-    Ok(Measured {
+    Ok((Measured {
         score,
         runtime,
         memory_initial: Some(memory_start),
@@ -68,7 +69,7 @@ pub fn measure<F: FnOnce() -> usize>(memory_start: Bytes, f: F) -> Result<Measur
         cpu_end,
         cpu_freq_start,
         cpu_freq_end,
-    })
+    }, alignment))
 }
 
 /// Returns the maximum resident set size, i.e. the physical memory the thread
