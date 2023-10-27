@@ -32,7 +32,7 @@ def extract_genes(gene_name, refseq_dir, output_dir):
 
             with gzip.open(fname, "rt") as f:
                 for r in skbio.io.read(f, "fasta"):
-                    if (match := gene_name_re.search(r.metadata['description'])):
+                    if match := gene_name_re.search(r.metadata['description']):
                         entry_gene = match.group(1)
 
                         if entry_gene.strip() == gene_name:
