@@ -53,6 +53,9 @@ struct BenchArgs {
 
     #[clap(short, long, default_value="output/")]
     output_dir: PathBuf,
+
+    #[clap(short='f', long, default_value="results.tsv")]
+    results_fname: PathBuf,
 }
 
 
@@ -225,7 +228,7 @@ fn bench(bench_args: BenchArgs) -> Result<(), POABenchError> {
 
     let mut tsv_writer = csv::WriterBuilder::new()
         .delimiter(b'\t')
-        .from_path(bench_args.output_dir.join("results.tsv"))?;
+        .from_path(bench_args.output_dir.join(bench_args.results_fname))?;
 
     thread::scope(|scope| {
         let mut job_iter = jobs.into_iter().zip(job_txs.into_iter());
