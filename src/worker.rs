@@ -118,7 +118,6 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
     let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
 
     let memory_start = bench::get_maxrss();
-    let graph_node_count = graph.node_count_with_start();
     let graph_edge_count = graph.edge_count();
 
     for seq in sequences {
