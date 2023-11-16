@@ -6,10 +6,11 @@ use anyhow::Result;
 use clap::Args;
 use core_affinity::CoreId;
 use flate2::read::GzDecoder;
-use poasta::graphs::AlignableGraph;
+use poasta::aligner::config::AffineMinGapCost;
+use poasta::graphs::AlignableRefGraph;
 use poasta::graphs::poa::POAGraphWithIx;
 use poasta::aligner::PoastaAligner;
-use poasta::aligner::scoring::GapAffine;
+use poasta::aligner::scoring::{AlignmentType, GapAffine};
 use noodles::fasta;
 use poasta::bubbles::index::BubbleIndexBuilder;
 
@@ -112,12 +113,9 @@ fn load_graph_and_align_poasta(dataset: &Dataset, output_dir: &Path, sequences: 
 }
 
 
-fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
-    let bubble_index = BubbleIndexBuilder::new(graph)
-        .build();
-
+fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
     let scoring = GapAffine::new(4, 2, 6);
-    let mut aligner: PoastaAligner<GapAffine> = PoastaAligner::new(scoring);
+    let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
 
     let memory_start = bench::get_maxrss();
     let graph_node_count = graph.node_count_with_start();
@@ -125,7 +123,7 @@ fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, se
 
     for seq in sequences {
         let (measured, alignment) = bench::measure(memory_start, || {
-            let (score, alignment) = aligner.align::<u32, _, _>(graph, &bubble_index, seq.sequence());
+            let (score, alignment) = aligner.align::<u32, _, _>(graph, seq.sequence());
 
             (score.into(), alignment)
         })?;
