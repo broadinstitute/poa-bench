@@ -11,6 +11,8 @@ Requires that the FASTA file is indexed using `samtools faidx`.
 """
 
 import argparse
+import bz2
+import gzip
 import io
 import subprocess
 import sys
@@ -82,30 +84,52 @@ def main():
         help="Path to a guide tree in newick format. If not given, will use Mash to create one."
     )
 
-    parser.add_argument('fasta', type=Path, metavar='FASTA',
+    parser.add_argument('fasta', type=Path, metavar='FASTA', nargs='+',
                         help="Path to FASTA file to sort.")
 
     args = parser.parse_args()
 
-    if args.tree:
-        with open(args.tree) as ifile:
-            tree = skbio.TreeNode.read(ifile)
-    else:
-        tree = create_tree_mash(args.fasta)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print("Combining and indexing input FASTA files...", file=sys.stderr)
+        tmppath = Path(tmpdir)
 
-    dmatrix = tree.tip_tip_distances()
+        with open(tmppath / "all_seq.fna", "wb") as ofile:
+            for fasta in args.fasta:
+                open_func = {
+                    '.gz': gzip.open,
+                    '.bz2': bz2.open,
+                }.get(fasta.suffix, open)
 
-    print("Writing sorted FASTA entries...", file=sys.stderr)
-    reader = pysam.FastaFile(args.fasta)
-    for seq_id in dmatrix.ids:
-        seq = reader.fetch(seq_id)
-        skbio.io.write(
-            skbio.DNA(seq, metadata={"id": seq_id}),
-            "fasta",
-            into=args.output
-        )
+                with open_func(fasta, "rb") as ifile:
+                    ofile.write(ifile.read())
 
-    print("Done.", file=sys.stderr)
+        subprocess.run(["bgzip", tmppath / "all_seq.fna"], check=True)
+        subprocess.run(["samtools", "faidx", tmppath / "all_seq.fna.gz"])
+
+        if args.tree:
+            with open(args.tree) as ifile:
+                tree = skbio.TreeNode.read(ifile)
+        else:
+            tree = create_tree_mash(tmppath / "all_seq.fna.gz")
+
+        dmatrix = tree.tip_tip_distances()
+
+        print("Writing sorted FASTA entries...", file=sys.stderr)
+        reader = pysam.FastaFile(tmppath / "all_seq.fna.gz")
+        for seq_id in dmatrix.ids:
+            try:
+                seq = reader.fetch(seq_id)
+            except ValueError:
+                print("Could not read sequence", seq_id, file=sys.stderr)
+                continue
+
+            skbio.io.write(
+                skbio.DNA(seq, metadata={"id": seq_id}),
+                "fasta",
+                into=args.output
+            )
+
+        print("Done.", file=sys.stderr)
 
 
 if __name__ == '__main__':
