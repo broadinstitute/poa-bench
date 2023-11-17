@@ -114,6 +114,9 @@ fn load_graph_and_align_poasta(dataset: &Dataset, output_dir: &Path, sequences: 
 
 
 fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+    let bubbles = BubbleIndexBuilder::new(graph)
+        .build();
+
     let scoring = GapAffine::new(4, 2, 6);
     let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
 
@@ -121,8 +124,10 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
     let graph_edge_count = graph.edge_count();
 
     for seq in sequences {
+        let bubbles_for_aln = bubbles.clone();
         let (measured, alignment) = bench::measure(memory_start, || {
-            let (score, alignment) = aligner.align::<u32, _, _>(graph, seq.sequence());
+            let (score, alignment) = aligner
+                .align_with_existing_bubbles::<u32, _, _>(graph, seq.sequence(), bubbles_for_aln);
 
             (score.into(), alignment)
         })?;

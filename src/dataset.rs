@@ -4,9 +4,7 @@ use std::path::{Path, PathBuf};
 use toml::Table;
 use serde::Deserialize;
 use crate::errors::POABenchError;
-use anyhow::Context;
 
-use poasta::graphs::poa::POAGraphWithIx;
 use noodles::fasta;
 use flate2::read::GzDecoder;
 use walkdir::WalkDir;
