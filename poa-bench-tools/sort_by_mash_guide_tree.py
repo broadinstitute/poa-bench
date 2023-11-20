@@ -7,7 +7,8 @@ in the FASTA file using mash, creates a NJ tree, and then
 outputs a new FASTA file, where the sequences closest to each other
 are output first.
 
-Requires that the FASTA file is indexed using `samtools faidx`.
+This script indexes the FASTA with samtools faidx, which
+should be available in your PATH.
 """
 
 import argparse
