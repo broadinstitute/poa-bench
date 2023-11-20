@@ -11,11 +11,13 @@ import argparse
 import gzip
 import re
 from pathlib import Path
-from tqdm import tqdm
 
+from tqdm import tqdm
 import skbio
 
-gene_name_re = re.compile(r"\[gene=(.*?)\]")
+from .subcommands import Command, run_command
+
+gene_name_re = re.compile(r"\[gene=(.*?)]")
 
 
 def extract_genes(gene_name, refseq_dir, output_dir):
@@ -41,29 +43,32 @@ def extract_genes(gene_name, refseq_dir, output_dir):
                             print(r.metadata['id'], accession, sep='\t', file=acc_o)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+class ExtractGenes(Command):
+    @classmethod
+    def register_arguments(cls, parser: argparse.ArgumentParser):
+        parser.add_argument(
+            'refseq', type=Path,
+            help="Path to directory with RefSeq genomes (as downloaded by genome_updater.sh)."
+        )
 
-    parser.add_argument(
-        'refseq', type=Path,
-        help="Path to directory with RefSeq genomes (as downloaded by genome_updater.sh)."
-    )
+        parser.add_argument(
+            'genes', nargs='+', metavar='GENE',
+            help='The gene name(s) for which to extract the DNA sequence(s)'
+        )
 
-    parser.add_argument(
-        'genes', nargs='+', metavar='GENE',
-        help='The gene name(s) for which to extract the DNA sequence(s)'
-    )
+        parser.add_argument(
+            '-o', '--output-dir', type=Path,
+            help="Output directory. A subdirectory per gene will be created."
+        )
 
-    parser.add_argument(
-        '-o', '--output-dir', type=Path,
-        help="Output directory. A subdirectory per gene will be created."
-    )
+    @classmethod
+    def main(cls, args: argparse.Namespace):
+        for gene in args.genes:
+            extract_genes(gene, args.refseq, args.output_dir / gene)
 
-    args = parser.parse_args()
 
-    for gene in args.genes:
-        extract_genes(gene, args.refseq, args.output_dir / gene)
+ExtractGenes.__doc__ = __doc__
 
 
 if __name__ == '__main__':
-    main()
+    run_command(ExtractGenes)

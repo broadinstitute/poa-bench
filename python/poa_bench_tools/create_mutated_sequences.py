@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-This script generates synthetically mutated sequences from a set of base haplotypes,
-at a given error rate.
+Generate synthetically mutated sequences at a given error rate
+using a set of base haplotypes.
 """
 
 import argparse
@@ -14,6 +14,8 @@ from pathlib import Path
 import numpy.random
 import skbio
 import numpy as np
+
+from .subcommands import Command, run_command
 
 
 events = ["S", "D", "I"]
@@ -119,46 +121,49 @@ def create_mutated_sequences(base_haplotypes: Path, output_file, error_rate: flo
                 total_generated += 1
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate synthetically mutated sequences")
+class MutateSeq(Command):
+    @classmethod
+    def register_arguments(cls, parser: argparse.ArgumentParser):
+        parser.add_argument(
+            'base_haplotypes', type=Path, metavar='BASE_HAP',
+            help="FASTA file with base haplotypes to mutate"
+        )
 
-    parser.add_argument(
-        'base_haplotypes', type=Path, metavar='BASE_HAP',
-        help="FASTA file with base haplotypes to mutate"
-    )
+        parser.add_argument(
+            '-o', '--output', type=argparse.FileType('w'), default=sys.stdout,
+            help="Output file to write mutated sequences to. Default: stdout."
+        )
 
-    parser.add_argument(
-        '-o', '--output', type=argparse.FileType('w'), default=sys.stdout,
-        help="Output file to write mutated sequences to. Default: stdout."
-    )
+        parser.add_argument(
+            '-e', '--error', type=float, default=0.01,
+            help="Error rate. Default: %(default)g."
+        )
 
-    parser.add_argument(
-        '-e', '--error', type=float, default=0.01,
-        help="Error rate. Default: %(default)g."
-    )
+        parser.add_argument(
+            '-n', '--num-to-generate', type=int, default=1000,
+            help="Number of mutated sequences to generate per base haplotype."
+        )
 
-    parser.add_argument(
-        '-n', '--num-to-generate', type=int, default=1000,
-        help="Number of mutated sequences to generate per base haplotype."
-    )
+        parser.add_argument(
+            '-t', '--truncate', type=int, default=None, required=False,
+            help="Truncate length of sequences to the given number. Optional."
+        )
 
-    parser.add_argument(
-        '-t', '--truncate', type=int, default=None, required=False,
-        help="Truncate length of sequences to the given number. Optional."
-    )
+        parser.add_argument(
+            '-s', '--seed', type=int, default=None, required=False,
+            help="Random generator seed. Optional."
+        )
 
-    parser.add_argument(
-        '-s', '--seed', type=int, default=None, required=False,
-        help="Random generator seed. Optional."
-    )
+    @classmethod
+    def main(cls, args: argparse.Namespace):
+        rng = np.random.default_rng(args.seed)
 
-    args = parser.parse_args()
-    rng = np.random.default_rng(args.seed)
+        create_mutated_sequences(args.base_haplotypes, args.output, args.error_rate, args.num_to_generate,
+                                 args.truncate, rng)
 
-    create_mutated_sequences(args.base_haplotypes, args.output, args.error_rate, args.num_to_generate,
-                             args.truncate, rng)
+
+MutateSeq.__doc__ = __doc__
 
 
 if __name__ == '__main__':
-    main()
-
+    run_command(MutateSeq)

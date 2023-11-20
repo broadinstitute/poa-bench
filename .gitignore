@@ -4,4 +4,4 @@
 .DS_Store
 __pycache__
 debug_out
-
+*.egg-info

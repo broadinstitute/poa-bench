@@ -14,6 +14,8 @@ import skbio
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import linkage, fcluster
 
+from .subcommands import Command, run_command
+
 
 def phylip_to_matrix(fname):
     with open(fname) as f:
@@ -153,121 +155,122 @@ def load_assembly_summary_meta(fname):
     return pandas.read_csv(fname, sep='\t', names=col_names, index_col=0)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.strip())
+class MakeGeneData(Command):
+    @classmethod
+    def register_arguments(cls, parser: argparse.ArgumentParser):
+        parser.add_argument(
+            'assembly_summary_list', type=Path,
+            help="List to assembly summary metadata list as obtained from NCBI"
+        )
 
-    parser.add_argument(
-        'assembly_summary_list', type=Path,
-        help="List to assembly summary metadata list as obtained from NCBI"
-    )
+        parser.add_argument(
+            'sequences_fasta', type=Path,
+            help="Path to FASTA with gene sequences"
+        )
+        parser.add_argument(
+            'sequences_acc_map', type=Path,
+            help="Path to a TSV mapping gene sequence IDs to their assembly accessions"
+        )
 
-    parser.add_argument(
-        'sequences_fasta', type=Path,
-        help="Path to FASTA with gene sequences"
-    )
-    parser.add_argument(
-        'sequences_acc_map', type=Path,
-        help="Path to a TSV mapping gene sequence IDs to their assembly accessions"
-    )
+        parser.add_argument(
+            'mash_traingle', type=Path,
+            help="Distance matrix for the gene sequences as created by `mash traingle`"
+        )
 
-    parser.add_argument(
-        'mash_traingle', type=Path,
-        help="Distance matrix for the gene sequences as created by `mash traingle`"
-    )
+        parser.add_argument(
+            '-o', '--output-dir', type=Path,
+            help="Output directory"
+        )
 
-    parser.add_argument(
-        '-o', '--output-dir', type=Path,
-        help="Output directory"
-    )
+    @classmethod
+    def main(cls, args: argparse.Namespace):
+        print("Loading assembly summary list...")
+        asm_summary = load_assembly_summary_meta(args.assembly_summary_list)
+        print(asm_summary)
+        acc_map = pandas.read_csv(args.sequences_acc_map, sep='\t', index_col=0, names=['seq_id', 'accession'])
 
-    args = parser.parse_args()
+        args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Loading assembly summary list...")
-    asm_summary = load_assembly_summary_meta(args.assembly_summary_list)
-    print(asm_summary)
-    acc_map = pandas.read_csv(args.sequences_acc_map, sep='\t', index_col=0, names=['seq_id', 'accession'])
+        print("Loading distance matrix...")
+        dmatrix = phylip_to_matrix(args.mash_traingle)
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
+        print("Creating linkage matrix...")
+        Z = linkage(squareform(dmatrix.values), method='single')
 
-    print("Loading distance matrix...")
-    dmatrix = phylip_to_matrix(args.mash_traingle)
+        print("Deduplicating sequences...")
+        duplicates = fcluster(Z, 0, criterion='distance')
+        duplicate_clusters = numpy.unique(duplicates)
 
-    print("Creating linkage matrix...")
-    Z = linkage(squareform(dmatrix.values), method='single')
-
-    print("Deduplicating sequences...")
-    duplicates = fcluster(Z, 0, criterion='distance')
-    duplicate_clusters = numpy.unique(duplicates)
-
-    to_keep = []
-    for cluster in duplicate_clusters:
-        cluster_select = duplicates == cluster
-        cluster_size = numpy.count_nonzero(cluster_select)
-
-        first = dmatrix.index[cluster_select][0]
-        if cluster_size > 1:
-            print(f"Found duplicates cluster (size: {cluster_size}), selecting", first)
-            to_keep.append(first)
-        else:
-            to_keep.append(first)
-
-    dmatrix_reduced = dmatrix.loc[to_keep, to_keep]
-    print(dmatrix_reduced)
-    print("Creating new linkage matrix...")
-    Z = linkage(squareform(dmatrix_reduced.values), method='single')
-
-    for max_dist in [0.01, 0.1, 0.25]:
-        clusters_assigned = fcluster(Z, max_dist, criterion='distance')
-        all_clusters, counts = numpy.unique(clusters_assigned, return_counts=True)
-        print(f"Clustering with max dist = {max_dist}, num_clusters =", len(all_clusters))
-        print("Cluster size histogram:")
-        cluster_sizes, freq_hist = numpy.unique(counts, return_counts=True)
-        max_freq = numpy.max(freq_hist)
-        for size, freq in zip(cluster_sizes, freq_hist):
-            print(f"{size}: {freq}", "#" * int(round((freq * 100) / max_freq)))
-
-        dist_output = args.output_dir / f"maxdist_{max_dist:g}"
-        dist_output.mkdir(parents=True, exist_ok=True)
-        non_cluster_ids = []
-
-        dataset_num = 1
-        for cluster in all_clusters:
-            cluster_select = clusters_assigned == cluster
-            cluster_ix = numpy.nonzero(cluster_select)[0]
+        to_keep = []
+        for cluster in duplicate_clusters:
+            cluster_select = duplicates == cluster
             cluster_size = numpy.count_nonzero(cluster_select)
 
-            if cluster_size >= 1000:
-                graph_sizes = [100, 250, 500]
-            elif cluster_size >= 500:
-                graph_sizes = [100, 250]
-            elif cluster_size >= 100:
-                graph_sizes = [5, 50]
+            first = dmatrix.index[cluster_select][0]
+            if cluster_size > 1:
+                print(f"Found duplicates cluster (size: {cluster_size}), selecting", first)
+                to_keep.append(first)
             else:
-                non_cluster_ids.extend(cluster_ix)
-                continue
+                to_keep.append(first)
 
-            for num_seq_graph in graph_sizes:
-                graph_seq_select = numpy.random.choice(numpy.arange(len(cluster_ix)), size=num_seq_graph, replace=False)
-                graph_seq_ix = cluster_ix[graph_seq_select]
-                align_seq_select = numpy.ones((len(cluster_ix),), dtype=bool)
-                align_seq_select[graph_seq_select] = False
-                align_seq_ix = cluster_ix[align_seq_select]
+        dmatrix_reduced = dmatrix.loc[to_keep, to_keep]
+        print(dmatrix_reduced)
+        print("Creating new linkage matrix...")
+        Z = linkage(squareform(dmatrix_reduced.values), method='single')
 
-                print("Creating dataset", dataset_num, "maxdist", max_dist, "graphsize", num_seq_graph, "align_seq",
-                      len(align_seq_ix))
-                create_dataset(asm_summary, acc_map, dist_output / f"dataset{dataset_num}_graphsize{num_seq_graph}",
-                               dmatrix_reduced, args.sequences_fasta, max_dist, graph_seq_ix, align_seq_ix)
+        for max_dist in [0.01, 0.1, 0.25]:
+            clusters_assigned = fcluster(Z, max_dist, criterion='distance')
+            all_clusters, counts = numpy.unique(clusters_assigned, return_counts=True)
+            print(f"Clustering with max dist = {max_dist}, num_clusters =", len(all_clusters))
+            print("Cluster size histogram:")
+            cluster_sizes, freq_hist = numpy.unique(counts, return_counts=True)
+            max_freq = numpy.max(freq_hist)
+            for size, freq in zip(cluster_sizes, freq_hist):
+                print(f"{size}: {freq}", "#" * int(round((freq * 100) / max_freq)))
 
-                dataset_num += 1
+            dist_output = args.output_dir / f"maxdist_{max_dist:g}"
+            dist_output.mkdir(parents=True, exist_ok=True)
+            non_cluster_ids = []
 
-        with (gzip.open(dist_output / "non_cluster_seq.fna.gz", "wt") as out,
-              gzip.open(args.sequences_fasta, "rt") as ifile):
-            non_cluster_seqs = set(dmatrix_reduced.index[non_cluster_ids])
+            dataset_num = 1
+            for cluster in all_clusters:
+                cluster_select = clusters_assigned == cluster
+                cluster_ix = numpy.nonzero(cluster_select)[0]
+                cluster_size = numpy.count_nonzero(cluster_select)
 
-            for r in skbio.io.read(ifile, "fasta"):
-                if r.metadata['id'] in non_cluster_seqs:
-                    skbio.io.write(r, "fasta", into=out)
+                if cluster_size >= 1000:
+                    graph_sizes = [100, 250, 500]
+                elif cluster_size >= 500:
+                    graph_sizes = [100, 250]
+                elif cluster_size >= 100:
+                    graph_sizes = [5, 50]
+                else:
+                    non_cluster_ids.extend(cluster_ix)
+                    continue
+
+                for num_seq_graph in graph_sizes:
+                    graph_seq_select = numpy.random.choice(numpy.arange(len(cluster_ix)),
+                                                           size=num_seq_graph, replace=False)
+                    graph_seq_ix = cluster_ix[graph_seq_select]
+                    align_seq_select = numpy.ones((len(cluster_ix),), dtype=bool)
+                    align_seq_select[graph_seq_select] = False
+                    align_seq_ix = cluster_ix[align_seq_select]
+
+                    print("Creating dataset", dataset_num, "maxdist", max_dist, "graphsize", num_seq_graph, "align_seq",
+                          len(align_seq_ix))
+                    create_dataset(asm_summary, acc_map, dist_output / f"dataset{dataset_num}_graphsize{num_seq_graph}",
+                                   dmatrix_reduced, args.sequences_fasta, max_dist, graph_seq_ix, align_seq_ix)
+
+                    dataset_num += 1
+
+            with (gzip.open(dist_output / "non_cluster_seq.fna.gz", "wt") as out,
+                  gzip.open(args.sequences_fasta, "rt") as ifile):
+                non_cluster_seqs = set(dmatrix_reduced.index[non_cluster_ids])
+
+                for r in skbio.io.read(ifile, "fasta"):
+                    if r.metadata['id'] in non_cluster_seqs:
+                        skbio.io.write(r, "fasta", into=out)
 
 
 if __name__ == '__main__':
-    main()
+    run_command(MakeGeneData)
