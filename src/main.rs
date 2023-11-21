@@ -145,8 +145,8 @@ fn sort_sequences_by_genetic_distance(output_dir: &Path, dataset: &Dataset) -> R
     let mut fname_without_gz = dataset.combined_sorted_fname(output_dir);
     fname_without_gz.set_extension("");
 
-    let process = process::Command::new("python")
-        .args(&["poa-bench-tools", "sort_fasta"])
+    let process = process::Command::new("poa-bench-tools")
+        .arg("sort_fasta")
         .arg(dataset.graph_sequences_fname())
         .arg(dataset.align_sequences_fname())
         .arg("-o")
