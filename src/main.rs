@@ -9,7 +9,6 @@ use std::sync::mpsc;
 use clap::{Args, command, Parser, Subcommand};
 use anyhow::{Context, Result};
 use rayon::prelude::*;
-use core_affinity;
 use core_affinity::CoreId;
 
 use errors::POABenchError;
@@ -224,13 +223,11 @@ where
 
         let reader = BufReader::new(child.stdout.as_mut().unwrap());
 
-        for line in reader.lines() {
-            if let Ok(contents) = line {
-                let job_result: serde_json::Result<JobResult> = serde_json::from_str(&contents);
-                match job_result {
-                    Ok(result) => tx.send(result)?,
-                    Err(e) => eprintln!("ERROR Could not parse job result from line: {}\nERROR {}", contents, e)
-                }
+        for line in reader.lines().flatten() {
+            let job_result: serde_json::Result<JobResult> = serde_json::from_str(&contents);
+            match job_result {
+                Ok(result) => tx.send(result)?,
+                Err(e) => eprintln!("ERROR Could not parse job result from line: {}\nERROR {}", contents, e)
             }
         }
 
@@ -286,9 +283,9 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
     }
 
     let results_single_fname = bench_args.results_prefix
-        .with_extension(".single_seq.tsv");
+        .with_extension("single_seq.tsv");
     let results_full_msa_fname = bench_args.results_prefix
-        .with_extension(".full_msa.tsv");
+        .with_extension("full_msa.tsv");
 
     let mut tsv_writer_single = csv::WriterBuilder::new()
         .delimiter(b'\t')
