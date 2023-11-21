@@ -8,7 +8,7 @@ use core_affinity::CoreId;
 use flate2::read::GzDecoder;
 use poasta::aligner::config::AffineMinGapCost;
 use poasta::graphs::AlignableRefGraph;
-use poasta::graphs::poa::POAGraphWithIx;
+use poasta::graphs::poa::{POAGraph, POAGraphWithIx};
 use poasta::aligner::PoastaAligner;
 use poasta::aligner::scoring::{AlignmentType, GapAffine};
 use noodles::fasta;
@@ -17,7 +17,7 @@ use poasta::bubbles::index::BubbleIndexBuilder;
 use crate::bench;
 use crate::errors::POABenchError;
 use crate::dataset::{Dataset, load_dataset, load_dataset_sequences};
-use crate::jobs::{Algorithm, JobResult};
+use crate::jobs::{Algorithm, BenchmarkType, JobResult};
 
 
 
@@ -34,6 +34,7 @@ pub struct WorkerArgs {
 
     dataset: String,
     algorithm: Algorithm,
+    benchmark_type: BenchmarkType,
 }
 
 fn make_graph_spoa(dataset: &Dataset) -> Result<spoa_rs::Graph, POABenchError> {
@@ -71,15 +72,16 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
 
     for seq in sequences {
         let sequence = std::str::from_utf8(seq.sequence().as_ref())?;
-        let (measured, alignment) = bench::measure(memory_start, || {
+        let (measured, (score, _)) = bench::measure(memory_start, || {
             let (score, alignment) = aligner.align(sequence, graph);
 
             ((-score) as usize, alignment)
         })?;
 
-        let result = JobResult::Measurement(
+        let result = JobResult::SingleSeqMeasurement(
             Algorithm::SPOA,
             dataset.name().to_string(),
+            score.into(),
             graph_edge_count,
             seq.name().to_string(),
             seq.sequence().len(),
@@ -96,7 +98,7 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
     Ok(())
 }
 
-fn load_graph_and_align_poasta(dataset: &Dataset, output_dir: &Path, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+fn bench_single_seq_alignments(dataset: &Dataset, output_dir: &Path, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
     let graph = poasta::io::load_graph_from_fasta_msa(dataset.graph_msa_fname(output_dir))?;
 
     match graph {
@@ -125,16 +127,17 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
 
     for seq in sequences {
         let bubbles_for_aln = bubbles.clone();
-        let (measured, alignment) = bench::measure(memory_start, || {
+        let (measured, (score, _)) = bench::measure(memory_start, || {
             let (score, alignment) = aligner
                 .align_with_existing_bubbles::<u32, _, _>(graph, seq.sequence(), bubbles_for_aln);
 
-            (score.into(), alignment)
+            (usize::from(score), alignment)
         })?;
 
-        let result = JobResult::Measurement(
+        let result = JobResult::SingleSeqMeasurement(
             Algorithm::POASTA,
             dataset.name().to_string(),
+            score.into(),
             graph_edge_count,
             seq.name().to_string(),
             seq.sequence().len(),
@@ -152,6 +155,79 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
     Ok(())
 }
 
+fn bench_full_msa_poasta(dataset: &Dataset, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+    let scoring = GapAffine::new(4, 2, 6);
+    let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
+
+    let memory_start = bench::get_maxrss();
+    let mut graph: POAGraph<u32> = POAGraph::new();
+
+    let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
+        for seq in sequences {
+            let weights: Vec<usize> = vec![1; seq.sequence().len()];
+
+            if graph.is_empty() {
+                graph.add_alignment_with_weights(seq.name(), seq.sequence(), None, &weights)?;
+            } else {
+                let (_, alignment) = aligner
+                    .align::<u32, _, _>(&graph, seq.sequence());
+
+                graph.add_alignment_with_weights(seq.name(), seq.sequence(), Some(&alignment), &weights)?;
+            }
+        }
+
+        Ok(())
+    })?;
+
+    let result = JobResult::FullMSAMeasurement(
+        Algorithm::POASTA,
+        dataset.name().to_string(),
+        measured
+    );
+
+    let json = match serde_json::to_string(&result) {
+        Ok(v) => v,
+        Err(e) => return Err(POABenchError::JSONError(e))
+    };
+
+    println!("{}", json);
+
+    Ok(())
+}
+
+fn bench_full_msa_spoa(dataset: &Dataset, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+    let memory_start = bench::get_maxrss();
+
+    let mut graph = spoa_rs::Graph::new();
+    let mut engine = spoa_rs::AlignmentEngine::new_affine(spoa_rs::AlignmentType::kNW, 0, -4, -8, -2);
+
+    let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
+        for record in sequences {
+            let seq = std::str::from_utf8(record.sequence().as_ref())?;
+            let (_, aln) = engine.align(seq, &graph);
+
+            graph.add_alignment(aln, seq);
+        }
+
+        Ok(())
+    })?;
+
+    let result = JobResult::FullMSAMeasurement(
+        Algorithm::SPOA,
+        dataset.name().to_string(),
+        measured
+    );
+
+    let json = match serde_json::to_string(&result) {
+        Ok(v) => v,
+        Err(e) => return Err(POABenchError::JSONError(e))
+    };
+
+    println!("{}", json);
+
+    Ok(())
+}
+
 pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
     if let Some(core_id) = worker_args.core_id {
         core_affinity::set_for_current(CoreId { id: core_id });
@@ -160,14 +236,19 @@ pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
     let dataset = load_dataset(&worker_args.datasets_dir, &worker_args.dataset)?;
     let sequences = load_dataset_sequences(&dataset)?;
 
-    match worker_args.algorithm {
-        Algorithm::POASTA => load_graph_and_align_poasta(&dataset, &worker_args.output_dir, &sequences)?,
-        Algorithm::SPOA => {
+    match (worker_args.algorithm, worker_args.benchmark_type) {
+        (Algorithm::POASTA, BenchmarkType::SingleSequence) =>
+            bench_single_seq_alignments(&dataset, &worker_args.output_dir, &sequences)?,
+        (Algorithm::POASTA, BenchmarkType::FullMSA) =>
+            bench_full_msa_poasta(&dataset, &sequences)?,
+        (Algorithm::SPOA, BenchmarkType::SingleSequence) => {
             let graph = make_graph_spoa(&dataset)?;
             std::thread::sleep(std::time::Duration::from_secs(1));
 
             perform_alignments_spoa(&dataset, &graph, &sequences)?;
-        }
+        },
+        (Algorithm::SPOA, BenchmarkType::FullMSA) =>
+            bench_full_msa_spoa(&dataset, &sequences)?
     }
 
     let finished = JobResult::Finished(worker_args.core_id);
