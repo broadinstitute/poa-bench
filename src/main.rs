@@ -142,20 +142,20 @@ fn sort_sequences_by_genetic_distance(output_dir: &Path, dataset: &Dataset) -> R
     }
 
     fs::create_dir_all(dataset.output_dir(output_dir))?;
-    let mut fname_without_gz = dataset.combined_sorted_fname(output_dir);
-    fname_without_gz.set_extension("");
+    let fname_without_gz = dataset.combined_sorted_fname(output_dir)
+        .with_extension("");
 
     let process = process::Command::new("poa-bench-tools")
         .arg("sort_fasta")
         .arg(dataset.graph_sequences_fname())
         .arg(dataset.align_sequences_fname())
         .arg("-o")
-        .args(&fname_without_gz)
+        .arg(&fname_without_gz)
         .output()
         .context("Could not sort FASTA file because poa-bench-tools command is not available!")?;
 
     if !process.status.success() {
-        return Err(POABenchError::BuildGraphError(String::from_utf8(process.stderr)?).into())
+        return Err(POABenchError::SortFastaError(String::from_utf8(process.stderr)?).into())
     }
 
     let process = process::Command::new("gzip")
@@ -164,7 +164,7 @@ fn sort_sequences_by_genetic_distance(output_dir: &Path, dataset: &Dataset) -> R
         .context("Could not gzip-compress combined and sorted FASTA!")?;
 
     if !process.status.success() {
-        return Err(POABenchError::BuildGraphError(String::from_utf8(process.stderr)?).into())
+        return Err(POABenchError::SortFastaError(String::from_utf8(process.stderr)?).into())
     }
 
     Ok(())

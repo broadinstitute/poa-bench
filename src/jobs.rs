@@ -11,13 +11,13 @@ pub enum Algorithm {
 impl Algorithm {
     pub fn to_str(&self) -> &str {
         match self {
-            Self::POASTA => &"poasta",
-            Self::SPOA => &"spoa"
+            Self::POASTA => "poasta",
+            Self::SPOA => "spoa"
         }
     }
 }
 
-pub static ALL_ALGORITHMS: &'static [Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
+pub static ALL_ALGORITHMS: &[Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
 
 
 #[derive(Copy, Clone, Debug, ValueEnum, Serialize, Deserialize)]
@@ -29,13 +29,13 @@ pub enum BenchmarkType {
 impl BenchmarkType {
     pub fn to_str(&self) -> &str {
         match self {
-            Self::SingleSequence => &"single_seq",
-            Self::FullMSA => &"full_msa",
+            Self::SingleSequence => "single-sequence",
+            Self::FullMSA => "full-msa",
         }
     }
 }
 
-pub static ALL_BENCHMARK_TYPES: &'static [BenchmarkType] = &[
+pub static ALL_BENCHMARK_TYPES: &[BenchmarkType] = &[
     BenchmarkType::SingleSequence,
     BenchmarkType::FullMSA
 ];
