@@ -61,6 +61,25 @@ minimum supported Rust version is 1.70.
 
 5. The built `poa-bench` executable will be available in the directory `target/release/`
 
+### Installing the Python helper tools
+
+`poa-bench` relies on a couple of helper scripts written in Python to
+create and manage datasets. These are located in the `python/` folder.
+To install them, move to the `python/` directory and run
+
+```bash
+pip install .
+```
+
+I'd recommend to create a new conda environment first, with at least Python 3.10.
+
+### Additional dependencies
+
+The following additional tools should be available in your `$PATH`:
+
+* `samtools`
+* `spoa`
+
 ## Datasets
 
 Datasets are defined by a TOML configuration files named `meta.toml`. See the data/ directory for a number of examples. Each 
