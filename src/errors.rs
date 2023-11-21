@@ -12,6 +12,7 @@ pub enum POABenchError {
     SendError(mpsc::SendError<JobResult>),
     Utf8Error(std::str::Utf8Error),
     BuildGraphError(String),
+    SortFastaError(String),
     PoastaError(PoastaError),
     JSONError(serde_json::Error),
     ParseConfigError(toml::de::Error),
@@ -27,6 +28,7 @@ impl Error for POABenchError {
             Self::SendError(source) => Some(source),
             Self::Utf8Error(source) => Some(source),
             Self::BuildGraphError(_) => None,
+            Self::SortFastaError(_) => None,
             Self::PoastaError(source) => Some(source),
             Self::JSONError(source) => Some(source),
             Self::ParseConfigError(source) => Some(source),
@@ -48,6 +50,8 @@ impl Display for POABenchError {
                 fmt::Display::fmt(source, f),
             Self::BuildGraphError(stderr) =>
                 write!(f, "Could not build graph for data set! Stderr: {}", stderr),
+            Self::SortFastaError(stderr) =>
+                write!(f, "Could not create sorted and combined FASTA! Stderr: {}", stderr),
             Self::PoastaError(source) =>
                 fmt::Display::fmt(source, f),
             Self::JSONError(source) => {

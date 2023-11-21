@@ -19,17 +19,43 @@ impl Algorithm {
 
 pub static ALL_ALGORITHMS: &'static [Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
 
+
+#[derive(Copy, Clone, Debug, ValueEnum, Serialize, Deserialize)]
+pub enum BenchmarkType {
+    SingleSequence,
+    FullMSA,
+}
+
+impl BenchmarkType {
+    pub fn to_str(&self) -> &str {
+        match self {
+            Self::SingleSequence => &"single_seq",
+            Self::FullMSA => &"full_msa",
+        }
+    }
+}
+
+pub static ALL_BENCHMARK_TYPES: &'static [BenchmarkType] = &[
+    BenchmarkType::SingleSequence,
+    BenchmarkType::FullMSA
+];
+
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Job {
     pub algorithm: Algorithm,
     pub dataset: String,
+    pub benchmark_type: BenchmarkType
 }
 
 /// Used for worker-orchestrator IPC
 #[derive(Debug, Serialize, Deserialize)]
 pub enum JobResult {
-    /// Variant to indicate new measurement results
-    Measurement(Algorithm, String, usize, String, usize, Measured),
+    /// Variant to indicate new measurement results from single sequence alignment
+    SingleSeqMeasurement(Algorithm, String, usize, usize, String, usize, Measured),
+
+    /// New measurement from the full MSA benchmark
+    FullMSAMeasurement(Algorithm, String, Measured),
 
     /// Variant to indicate the whole dataset has been processed and optionally indicates which
     /// processor core is now free

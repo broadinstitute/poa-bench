@@ -18,8 +18,6 @@ pub type Bytes = u64;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Measured {
-    /// Alignment score
-    pub score: usize,
     /// Runtime in seconds.
     pub runtime: f32,
     /// max_rss after reading input file.
@@ -40,7 +38,7 @@ pub struct Measured {
 }
 
 /// F can return some state that is dropped only after the memory is measured.
-pub fn measure<A, F: FnOnce() -> (usize, A)>(memory_start: Bytes, f: F) -> Result<(Measured, A), POABenchError> {
+pub fn measure<V, F: FnOnce() -> V>(memory_start: Bytes, f: F) -> Result<(Measured, V), POABenchError> {
     reset_max_rss()?;
 
     let cpu_start = get_cpu();
@@ -48,7 +46,7 @@ pub fn measure<A, F: FnOnce() -> (usize, A)>(memory_start: Bytes, f: F) -> Resul
     let time_start = chrono::Utc::now().trunc_subsecs(3);
     let start = Instant::now();
 
-    let (score, alignment) = f();
+    let rvalue = f();
 
     let runtime = start.elapsed().as_secs_f32();
     let time_end = chrono::Utc::now().trunc_subsecs(3);
@@ -58,7 +56,6 @@ pub fn measure<A, F: FnOnce() -> (usize, A)>(memory_start: Bytes, f: F) -> Resul
     let cpu_freq_end = cpu_end.and_then(|c| get_cpu_freq(c));
 
     Ok((Measured {
-        score,
         runtime,
         memory_initial: Some(memory_start),
         memory_total: Some(memory_total),
@@ -69,7 +66,7 @@ pub fn measure<A, F: FnOnce() -> (usize, A)>(memory_start: Bytes, f: F) -> Resul
         cpu_end,
         cpu_freq_start,
         cpu_freq_end,
-    }, alignment))
+    }, rvalue))
 }
 
 /// Returns the maximum resident set size, i.e. the physical memory the thread

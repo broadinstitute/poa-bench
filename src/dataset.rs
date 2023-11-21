@@ -35,6 +35,10 @@ impl Dataset {
         self.output_dir(base_dir).join("graph.msa.fasta")
     }
 
+    pub fn combined_sorted_fname(&self, base_dir: &Path) -> PathBuf {
+        self.output_dir(base_dir).join("all_seq.sorted.fna.gz")
+    }
+
     pub fn graph_sequences_fname(&self) -> PathBuf {
         self.1.join(&self.2.graph_set.fname)
     }
