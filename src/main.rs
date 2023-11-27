@@ -224,10 +224,10 @@ where
         let reader = BufReader::new(child.stdout.as_mut().unwrap());
 
         for line in reader.lines().flatten() {
-            let job_result: serde_json::Result<JobResult> = serde_json::from_str(&contents);
+            let job_result: serde_json::Result<JobResult> = serde_json::from_str(&line);
             match job_result {
                 Ok(result) => tx.send(result)?,
-                Err(e) => eprintln!("ERROR Could not parse job result from line: {}\nERROR {}", contents, e)
+                Err(e) => eprintln!("ERROR Could not parse job result from line: {}\nERROR {}", line, e)
             }
         }
 
