@@ -11,8 +11,8 @@ from .subcommands import Command, run_command
 
 
 NUM_GRAPH_HAP = [3, 10, 25]
-ERROR_RATES = [0.01, 0.05, 0.15]
-LENGTHS = [150, 500, 1000]
+ERROR_RATES = [0.01, 0.03, 0.05]
+LENGTHS = [500, 1000, 1500]
 
 
 class MakeSyntheticData(Command):
