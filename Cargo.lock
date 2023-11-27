@@ -851,6 +851,7 @@ dependencies = [
 [[package]]
 name = "spoa_rs"
 version = "0.1.0"
+source = "git+https://github.com/broadinstitute/spoa-rs#0ff3cd973992f33330655a6c32c91a578dc1a67d"
 dependencies = [
  "cmake",
  "cxx",
