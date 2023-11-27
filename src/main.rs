@@ -158,6 +158,7 @@ fn sort_sequences_by_genetic_distance(output_dir: &Path, dataset: &Dataset) -> R
     }
 
     let process = process::Command::new("gzip")
+        .arg("-f")
         .arg(&fname_without_gz)
         .output()
         .context("Could not gzip-compress combined and sorted FASTA!")?;
