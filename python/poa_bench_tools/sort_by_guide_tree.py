@@ -51,11 +51,11 @@ def phylip_to_matrix(fname):
     return dmatrix
 
 
-def create_tree_mash(fname: Path):
+def create_tree_mash(fname: Path, k: int):
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
 
-        subprocess.run(["mash", "sketch", "-i", "-k", "11", fname, "-o", tmppath / "sketch"],
+        subprocess.run(["mash", "sketch", "-i", "-k", str(k), fname, "-o", tmppath / "sketch"],
                        check=True)
 
         with open(tmppath / "dists.phylip", "wb") as ofile:
@@ -85,6 +85,11 @@ class SortFasta(Command):
             help="Path to a guide tree in newick format. If not given, will use Mash to create one."
         )
 
+        parser.add_argument(
+            '-k', '--kmer_size', type=int, default=15,
+            help="Mash k-mer size for sketching"
+        )
+
         parser.add_argument('fasta', type=Path, metavar='FASTA', nargs='+',
                             help="Path to FASTA file to sort.")
 
@@ -111,7 +116,7 @@ class SortFasta(Command):
                 with open(args.tree) as ifile:
                     tree = skbio.TreeNode.read(ifile)
             else:
-                tree = create_tree_mash(tmppath / "all_seq.fna.gz")
+                tree = create_tree_mash(tmppath / "all_seq.fna.gz", args.kmer_size)
 
             dmatrix = tree.tip_tip_distances()
 
