@@ -55,7 +55,7 @@ class MakeSyntheticData(Command):
             # for alignment benchmarking
             align_seq = output_dir / f"align_seq.fna.gz"
             with gzip.open(align_seq, "wt") as o:
-                create_mutated_sequences(graph_seq, o, error_rate, 1000, length, rng)
+                create_mutated_sequences(graph_seq, o, error_rate, 100, length, rng)
 
             with open(output_dir / "meta.toml", "wt") as o:
                 print(f"error_rate = {error_rate:g}", file=o)
