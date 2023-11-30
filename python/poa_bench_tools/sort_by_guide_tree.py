@@ -124,7 +124,7 @@ class SortFasta(Command):
                 tree = create_tree_mash(tmppath / "all_seq.fna.gz", args.kmer_size)
 
                 if args.tree_output is not None:
-                    tree.save("newick", into=args.tree_output)
+                    tree.write(args.tree_output, "newick")
 
             dmatrix = tree.tip_tip_distances()
 
