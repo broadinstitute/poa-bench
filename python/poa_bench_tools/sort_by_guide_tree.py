@@ -90,6 +90,11 @@ class SortFasta(Command):
             help="Mash k-mer size for sketching"
         )
 
+        parser.add_argument(
+            '-O', '--tree-output', type=argparse.FileType('w'), default=None,
+            help="When creating a guide-tree using mash, save the tree in Newick format to the given file."
+        )
+
         parser.add_argument('fasta', type=Path, metavar='FASTA', nargs='+',
                             help="Path to FASTA file to sort.")
 
@@ -117,6 +122,9 @@ class SortFasta(Command):
                     tree = skbio.TreeNode.read(ifile)
             else:
                 tree = create_tree_mash(tmppath / "all_seq.fna.gz", args.kmer_size)
+
+                if args.tree_output is not None:
+                    tree.save("newick", into=args.tree_output)
 
             dmatrix = tree.tip_tip_distances()
 
