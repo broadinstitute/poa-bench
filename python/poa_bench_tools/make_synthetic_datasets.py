@@ -29,6 +29,26 @@ class MakeSyntheticData(Command):
         )
 
         parser.add_argument(
+            '-H', '--num-haplotypes', type=int, nargs='+',
+            help="Number of base haplotypes to generate."
+        )
+
+        parser.add_argument(
+            '-E', '--error-rates', type=float, nargs='+',
+            help="Error rates to use."
+        )
+
+        parser.add_argument(
+            '-L', '--truncate-lengths', type=int, nargs='+',
+            help="Truncate the input sequence."
+        )
+
+        parser.add_argument(
+            '-N', '--num-sequences', type=int, default=100,
+            help="Number of randomly mutated sequences to generate"
+        )
+
+        parser.add_argument(
             '-o', '--output-dir', type=Path,
             help="Output directory for each dataset"
         )
@@ -40,10 +60,18 @@ class MakeSyntheticData(Command):
 
     @classmethod
     def main(cls, args: argparse.Namespace):
+        num_graph_hap = args.num_haplotypes if args.num_haplotypes else NUM_GRAPH_HAP
+        error_rates = args.error_rates if args.error_rates else ERROR_RATES
+        lengths = args.truncate_lengths if args.truncate_lengths else [None]
+
         rng = numpy.random.default_rng(args.seed)
 
-        for num_hap, error_rate, length in itertools.product(NUM_GRAPH_HAP, ERROR_RATES, LENGTHS):
-            output_dir = args.output_dir / f"hap{num_hap}_err{error_rate:g}_len{length}"
+        for num_hap, error_rate, length in itertools.product(num_graph_hap, error_rates, lengths):
+            if length:
+                output_dir = args.output_dir / f"hap{num_hap}_err{error_rate:g}_len{length}"
+            else:
+                output_dir = args.output_dir / f"hap{num_hap}_err{error_rate:g}"
+
             output_dir.mkdir(parents=True, exist_ok=True)
 
             # First, generate random haplotypes to be used for the graph
@@ -55,7 +83,7 @@ class MakeSyntheticData(Command):
             # for alignment benchmarking
             align_seq = output_dir / f"align_seq.fna.gz"
             with gzip.open(align_seq, "wt") as o:
-                create_mutated_sequences(graph_seq, o, error_rate, 100, length, rng)
+                create_mutated_sequences(graph_seq, o, error_rate, args.num_sequences, length, rng)
 
             with open(output_dir / "meta.toml", "wt") as o:
                 print(f"error_rate = {error_rate:g}", file=o)
