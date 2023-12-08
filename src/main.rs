@@ -259,7 +259,7 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
     for algorithm in algorithms {
         for benchmark in benchmarks {
             for dataset in &datasets {
-                if benchmark == BenchmarkType::FullMSA && dataset.name().starts_with("synthetic/") {
+                if *benchmark == BenchmarkType::FullMSA && dataset.name().starts_with("synthetic/") {
                     continue;
                 }
 
