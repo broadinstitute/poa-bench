@@ -20,7 +20,7 @@ impl Algorithm {
 pub static ALL_ALGORITHMS: &[Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
 
 
-#[derive(Copy, Clone, Debug, ValueEnum, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum BenchmarkType {
     SingleSequence,
     FullMSA,
