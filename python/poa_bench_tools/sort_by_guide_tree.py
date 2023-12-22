@@ -127,10 +127,16 @@ class SortFasta(Command):
                     tree.write(args.tree_output, "newick")
 
             dmatrix = tree.tip_tip_distances()
+            df = dmatrix.to_data_frame()
+            avg_dists = df.mean(axis=0)
+            center_genome = str(avg_dists.idxmin())
+
+            other_genomes = set(dmatrix.ids) - {center_genome}
+            sorted_by_dist = [center_genome, *sorted(other_genomes, key=lambda g: dmatrix[center_genome, g])]
 
             print("Writing sorted FASTA entries...", file=sys.stderr)
             reader = pysam.FastaFile(tmppath / "all_seq.fna.gz")
-            for seq_id in dmatrix.ids:
+            for seq_id in sorted_by_dist:
                 try:
                     seq = reader.fetch(seq_id)
                 except ValueError:
