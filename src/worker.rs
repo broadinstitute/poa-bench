@@ -66,6 +66,7 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
     eprintln!("Performing alignments with SPOA for {:?}...", dataset.name());
     bench::reset_max_rss()?;
     let memory_start = bench::get_maxrss();
+    let graph_node_count = graph.node_count();
     let graph_edge_count = graph.edge_count();
 
     let mut aligner = spoa_rs::AlignmentEngine::new_affine(spoa_rs::AlignmentType::kNW, 0, -4, -8, -2);
@@ -78,13 +79,17 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
             ((-score) as usize, alignment)
         })?;
 
+        let num_visited = (sequence.len() + 1) * (graph_node_count + 1) * 3;
+
         let result = JobResult::SingleSeqMeasurement(
             Algorithm::SPOA,
             dataset.name().to_string(),
             score.into(),
+            graph_node_count,
             graph_edge_count,
             seq.name().to_string(),
             seq.sequence().len(),
+            num_visited,
             measured
         );
         let json = match serde_json::to_string(&result) {
@@ -123,24 +128,27 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
     let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
 
     let memory_start = bench::get_maxrss();
+    let graph_node_count = graph.node_count();
     let graph_edge_count = graph.edge_count();
 
     for seq in sequences {
         let bubbles_for_aln = bubbles.clone();
-        let (measured, (score, _)) = bench::measure(memory_start, || {
-            let (score, alignment) = aligner
+        let (measured, (score, _, num_visited)) = bench::measure(memory_start, || {
+            let result = aligner
                 .align_with_existing_bubbles::<u32, _, _>(graph, seq.sequence(), bubbles_for_aln);
 
-            (usize::from(score), alignment)
+            (usize::from(result.score), result.alignment, result.num_visited)
         })?;
 
         let result = JobResult::SingleSeqMeasurement(
             Algorithm::POASTA,
             dataset.name().to_string(),
             score.into(),
+            graph_node_count,
             graph_edge_count,
             seq.name().to_string(),
             seq.sequence().len(),
+            num_visited,
             measured
         );
 
@@ -169,10 +177,10 @@ fn bench_full_msa_poasta(dataset: &Dataset, sequences: &[fasta::Record]) -> Resu
             if graph.is_empty() {
                 graph.add_alignment_with_weights(seq.name(), seq.sequence(), None, &weights)?;
             } else {
-                let (_, alignment) = aligner
+                let result = aligner
                     .align::<u32, _, _>(&graph, seq.sequence());
 
-                graph.add_alignment_with_weights(seq.name(), seq.sequence(), Some(&alignment), &weights)?;
+                graph.add_alignment_with_weights(seq.name(), seq.sequence(), Some(&result.alignment), &weights)?;
             }
         }
 

@@ -324,18 +324,22 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
                     algo,
                     dataset,
                     score,
+                    graph_nodes,
                     graph_edges,
                     seq_name,
                     seq_length,
+                    num_visited,
                     measured
                 ) => {
                     tsv_writer_single.write_record(&[
                         &dataset,
                         algo.to_str(),
+                        &graph_nodes.to_string(),
                         &graph_edges.to_string(),
                         &seq_name,
                         &seq_length.to_string(),
                         &score.to_string(),
+                        &num_visited.to_string(),
                         &measured.runtime.to_string(),
                         &measured.memory_initial.map_or(String::default(), |v| v.to_string()),
                         &measured.memory_total.map_or(String::default(), |v| v.to_string()),

@@ -52,7 +52,7 @@ pub struct Job {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum JobResult {
     /// Variant to indicate new measurement results from single sequence alignment
-    SingleSeqMeasurement(Algorithm, String, usize, usize, String, usize, Measured),
+    SingleSeqMeasurement(Algorithm, String, usize, usize, usize, String, usize, usize, Measured),
 
     /// New measurement from the full MSA benchmark
     FullMSAMeasurement(Algorithm, String, Measured),
