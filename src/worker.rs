@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use anyhow::Result;
 use clap::Args;
@@ -12,7 +13,7 @@ use poasta::graphs::poa::{POAGraph, POAGraphWithIx};
 use poasta::aligner::PoastaAligner;
 use poasta::aligner::scoring::{AlignmentType, GapAffine};
 use noodles::fasta;
-use poasta::bubbles::index::BubbleIndexBuilder;
+use poasta::bubbles::index::BubbleIndex;
 
 use crate::bench;
 use crate::errors::POABenchError;
@@ -121,8 +122,7 @@ fn bench_single_seq_alignments(dataset: &Dataset, output_dir: &Path, sequences: 
 
 
 fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
-    let bubbles = BubbleIndexBuilder::new(graph)
-        .build();
+    let bubbles = Rc::new(BubbleIndex::new(graph));
 
     let scoring = GapAffine::new(4, 2, 6);
     let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
