@@ -23,6 +23,7 @@ make_synthetic_data = "poa_bench_tools.make_synthetic_datasets:MakeSyntheticData
 extract_genes = "poa_bench_tools.extract_genes:ExtractGenes"
 make_gene_data = "poa_bench_tools.make_gene_dataset:MakeGeneData"
 sort_fasta = "poa_bench_tools.sort_by_guide_tree:SortFasta"
+msa_stats = "poa_bench_tools.msa_stats:MSAStats"
 
 [tool.setuptools.packages]
 find = {}
