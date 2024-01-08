@@ -137,7 +137,7 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
             let result = aligner
                 .align_with_existing_bubbles::<u32, _, _>(graph, seq.sequence(), bubbles_for_aln);
 
-            (usize::from(result.score), result.alignment, result.num_visited)
+            (u32::from(result.score) as usize, result.alignment, result.num_visited)
         })?;
 
         let result = JobResult::SingleSeqMeasurement(
