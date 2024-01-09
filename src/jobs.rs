@@ -2,22 +2,24 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use crate::bench::Measured;
 
-#[derive(Copy, Clone, Debug, ValueEnum, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum Algorithm {
     POASTA,
-    SPOA
+    SPOA,
+    MAFFT,
 }
 
 impl Algorithm {
     pub fn to_str(&self) -> &str {
         match self {
             Self::POASTA => "poasta",
-            Self::SPOA => "spoa"
+            Self::SPOA => "spoa",
+            Self::MAFFT => "mafft",
         }
     }
 }
 
-pub static ALL_ALGORITHMS: &[Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
+pub static ALL_ALGORITHMS: &[Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA, Algorithm::MAFFT];
 
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]

@@ -258,6 +258,10 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
     let mut jobs = Vec::new();
     for algorithm in algorithms {
         for benchmark in benchmarks {
+            if *algorithm == Algorithm::MAFFT && *benchmark == BenchmarkType::SingleSequence {
+                continue;
+            }
+
             for dataset in &datasets {
                 if *benchmark == BenchmarkType::FullMSA && dataset.name().starts_with("synthetic/") {
                     continue;

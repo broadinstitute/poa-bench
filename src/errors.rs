@@ -19,6 +19,7 @@ pub enum POABenchError {
     WorkerError,
     MemoryResetError,
     TSVError(csv::Error),
+    MAFFTError,
 }
 
 impl Error for POABenchError {
@@ -35,6 +36,7 @@ impl Error for POABenchError {
             Self::WorkerError => None,
             Self::MemoryResetError => None,
             Self::TSVError(source) => Some(source),
+            Self::MAFFTError => None,
         }
     }
 }
@@ -67,7 +69,8 @@ impl Display for POABenchError {
             Self::TSVError(source) => {
                 write!(f, "Could not write results to TSV! ")?;
                 fmt::Display::fmt(source, f)
-            }
+            },
+            Self::MAFFTError => write!(f, "MAFFT finished with non-zero exit code!")
         }
     }
 }

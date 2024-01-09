@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::process;
+use std::process::Stdio;
 use std::rc::Rc;
 
 use anyhow::Result;
@@ -17,7 +19,7 @@ use poasta::bubbles::index::BubbleIndex;
 
 use crate::bench;
 use crate::errors::POABenchError;
-use crate::dataset::{Dataset, load_dataset, load_dataset_sequences};
+use crate::dataset::{Dataset, load_dataset, load_align_set_sequences, load_combined_sorted_sequences};
 use crate::jobs::{Algorithm, BenchmarkType, JobResult};
 
 
@@ -236,13 +238,49 @@ fn bench_full_msa_spoa(dataset: &Dataset, sequences: &[fasta::Record]) -> Result
     Ok(())
 }
 
+fn bench_full_msa_mafft(dataset: &Dataset, seq_fname: &Path) -> Result<(), POABenchError> {
+    let memory_start = bench::get_maxrss();
+
+    let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
+        let mut mafft = process::Command::new("mafft")
+            .arg(seq_fname)
+            .stdout(Stdio::null())
+            .spawn()?;
+
+        if !mafft.wait()?.success() {
+            return Err(POABenchError::MAFFTError)
+        }
+
+        Ok(())
+    })?;
+
+    let result = JobResult::FullMSAMeasurement(
+        Algorithm::MAFFT,
+        dataset.name().to_string(),
+        measured
+    );
+
+    let json = match serde_json::to_string(&result) {
+        Ok(v) => v,
+        Err(e) => return Err(POABenchError::JSONError(e))
+    };
+
+    println!("{}", json);
+
+    Ok(())
+}
+
 pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
     if let Some(core_id) = worker_args.core_id {
         core_affinity::set_for_current(CoreId { id: core_id });
     }
 
     let dataset = load_dataset(&worker_args.datasets_dir, &worker_args.dataset)?;
-    let sequences = load_dataset_sequences(&dataset)?;
+    let sequences = if worker_args.benchmark_type == BenchmarkType::SingleSequence {
+        load_align_set_sequences(&dataset)?
+    } else {
+        load_combined_sorted_sequences(&dataset, &worker_args.output_dir)?
+    };
 
     match (worker_args.algorithm, worker_args.benchmark_type) {
         (Algorithm::POASTA, BenchmarkType::SingleSequence) =>
@@ -256,7 +294,10 @@ pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
             perform_alignments_spoa(&dataset, &graph, &sequences)?;
         },
         (Algorithm::SPOA, BenchmarkType::FullMSA) =>
-            bench_full_msa_spoa(&dataset, &sequences)?
+            bench_full_msa_spoa(&dataset, &sequences)?,
+        (Algorithm::MAFFT, BenchmarkType::SingleSequence) => eprintln!("Single sequence benchmark with MAFFT not possible"),
+        (Algorithm::MAFFT, BenchmarkType::FullMSA) =>
+            bench_full_msa_mafft(&dataset, &dataset.combined_sorted_fname(&worker_args.output_dir))?
     }
 
     let finished = JobResult::Finished(worker_args.core_id);

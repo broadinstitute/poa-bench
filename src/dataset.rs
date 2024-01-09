@@ -84,8 +84,17 @@ pub fn load_dataset(datasets_dir: &Path, dataset_name: &str) -> Result<Dataset, 
     Ok(Dataset(dataset_name.to_string(), dataset_dir, dataset_cfg))
 }
 
-pub fn load_dataset_sequences(dataset: &Dataset) -> Result<Vec<fasta::Record>, POABenchError> {
+pub fn load_align_set_sequences(dataset: &Dataset) -> Result<Vec<fasta::Record>, POABenchError> {
     let mut seq_file = fs::File::open(dataset.align_sequences_fname())
+        .map(GzDecoder::new)
+        .map(BufReader::new)
+        .map(fasta::Reader::new)?;
+
+    Ok(seq_file.records().filter_map(Result::ok).collect())
+}
+
+pub fn load_combined_sorted_sequences(dataset: &Dataset, output_dir: &Path) -> Result<Vec<fasta::Record>, POABenchError> {
+    let mut seq_file = fs::File::open(dataset.combined_sorted_fname(output_dir))
         .map(GzDecoder::new)
         .map(BufReader::new)
         .map(fasta::Reader::new)?;
