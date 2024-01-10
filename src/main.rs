@@ -287,8 +287,11 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
     let (tx, rx) = mpsc::channel();
     let mut job_txs = Vec::with_capacity(jobs.len());
     job_txs.push(tx);
-    for _ in &jobs[1..] {
-        job_txs.push(job_txs[0].clone());
+
+    if jobs.len() > 1 {
+        for _ in &jobs[1..] {
+            job_txs.push(job_txs[0].clone());
+        }
     }
 
     let results_single_fname = bench_args.results_prefix
