@@ -253,7 +253,7 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
 
     eprintln!("Building job list...");
     let algorithms: &[Algorithm] = if bench_args.algorithms.len() > 0 { &bench_args.algorithms } else { jobs::ALL_ALGORITHMS };
-    let benchmarks: &[BenchmarkType] = if bench_args.algorithms.len() > 0 { &bench_args.benchmarks } else { jobs::ALL_BENCHMARK_TYPES };
+    let benchmarks: &[BenchmarkType] = if bench_args.benchmarks.len() > 0 { &bench_args.benchmarks } else { jobs::ALL_BENCHMARK_TYPES };
 
     let mut jobs = Vec::new();
     for algorithm in algorithms {
