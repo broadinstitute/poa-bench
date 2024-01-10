@@ -243,6 +243,7 @@ fn bench_full_msa_mafft(dataset: &Dataset, seq_fname: &Path) -> Result<(), POABe
 
     let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
         let mut mafft = process::Command::new("mafft")
+            .arg("--anysymbol")
             .arg(seq_fname)
             .stdout(Stdio::null())
             .spawn()?;
