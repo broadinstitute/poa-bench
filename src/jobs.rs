@@ -6,7 +6,6 @@ use crate::bench::Measured;
 pub enum Algorithm {
     POASTA,
     SPOA,
-    MAFFT,
 }
 
 impl Algorithm {
@@ -14,12 +13,11 @@ impl Algorithm {
         match self {
             Self::POASTA => "poasta",
             Self::SPOA => "spoa",
-            Self::MAFFT => "mafft",
         }
     }
 }
 
-pub static ALL_ALGORITHMS: &[Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA, Algorithm::MAFFT];
+pub static ALL_ALGORITHMS: &[Algorithm] = &[Algorithm::POASTA, Algorithm::SPOA];
 
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]

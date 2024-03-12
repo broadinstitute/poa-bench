@@ -1,8 +1,6 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use std::process;
-use std::process::Stdio;
 use std::rc::Rc;
 
 use anyhow::Result;
@@ -42,7 +40,10 @@ pub struct WorkerArgs {
 
 fn make_graph_spoa(dataset: &Dataset) -> Result<spoa_rs::Graph, POABenchError> {
     eprintln!("Preparing SPOA graph for {:?}...", dataset.name());
-    let graph_seq_fname = dataset.graph_sequences_fname();
+    let Some(graph_seq_fname) = dataset.graph_sequences_fname() else {
+        return Err(POABenchError::BuildGraphError(String::from("No graph sequence set filename")))
+    };
+
     let mut reader = File::open(&graph_seq_fname)
         .map(GzDecoder::new)
         .map(BufReader::new)
@@ -87,7 +88,7 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
         let result = JobResult::SingleSeqMeasurement(
             Algorithm::SPOA,
             dataset.name().to_string(),
-            score.into(),
+            score,
             graph_node_count,
             graph_edge_count,
             seq.name().to_string(),
@@ -111,13 +112,13 @@ fn bench_single_seq_alignments(dataset: &Dataset, output_dir: &Path, sequences: 
 
     match graph {
         POAGraphWithIx::U8(ref g) =>
-            perform_alignments_poasta(&dataset, g, &sequences),
+            perform_alignments_poasta(dataset, g, sequences),
         POAGraphWithIx::U16(ref g) =>
-            perform_alignments_poasta(&dataset, g, &sequences),
+            perform_alignments_poasta(dataset, g, sequences),
         POAGraphWithIx::U32(ref g) =>
-            perform_alignments_poasta(&dataset, g, &sequences),
+            perform_alignments_poasta(dataset, g, sequences),
         POAGraphWithIx::USIZE(ref g) =>
-            perform_alignments_poasta(&dataset, g, &sequences),
+            perform_alignments_poasta(dataset, g, sequences),
 
     }
 }
@@ -127,7 +128,7 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
     let bubbles = Rc::new(BubbleIndex::new(graph));
 
     let scoring = GapAffine::new(4, 2, 6);
-    let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
+    let aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
 
     let memory_start = bench::get_maxrss();
     let graph_node_count = graph.node_count();
@@ -167,7 +168,7 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
 
 fn bench_full_msa_poasta(dataset: &Dataset, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
     let scoring = GapAffine::new(4, 2, 6);
-    let mut aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
+    let aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
 
     let memory_start = bench::get_maxrss();
     let mut graph: POAGraph<u32> = POAGraph::new();
@@ -238,39 +239,6 @@ fn bench_full_msa_spoa(dataset: &Dataset, sequences: &[fasta::Record]) -> Result
     Ok(())
 }
 
-fn bench_full_msa_mafft(dataset: &Dataset, seq_fname: &Path) -> Result<(), POABenchError> {
-    let memory_start = bench::get_maxrss();
-
-    let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
-        let mut mafft = process::Command::new("mafft")
-            .arg("--anysymbol")
-            .arg(seq_fname)
-            .stdout(Stdio::null())
-            .spawn()?;
-
-        if !mafft.wait()?.success() {
-            return Err(POABenchError::MAFFTError)
-        }
-
-        Ok(())
-    })?;
-
-    let result = JobResult::FullMSAMeasurement(
-        Algorithm::MAFFT,
-        dataset.name().to_string(),
-        measured
-    );
-
-    let json = match serde_json::to_string(&result) {
-        Ok(v) => v,
-        Err(e) => return Err(POABenchError::JSONError(e))
-    };
-
-    println!("{}", json);
-
-    Ok(())
-}
-
 pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
     if let Some(core_id) = worker_args.core_id {
         core_affinity::set_for_current(CoreId { id: core_id });
@@ -296,9 +264,6 @@ pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
         },
         (Algorithm::SPOA, BenchmarkType::FullMSA) =>
             bench_full_msa_spoa(&dataset, &sequences)?,
-        (Algorithm::MAFFT, BenchmarkType::SingleSequence) => eprintln!("Single sequence benchmark with MAFFT not possible"),
-        (Algorithm::MAFFT, BenchmarkType::FullMSA) =>
-            bench_full_msa_mafft(&dataset, &dataset.combined_sorted_fname(&worker_args.output_dir))?
     }
 
     let finished = JobResult::Finished(worker_args.core_id);

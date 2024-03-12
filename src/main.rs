@@ -69,11 +69,15 @@ struct BenchArgs {
 
 
 fn build_graph_with_spoa(output_dir: &Path, dataset: &Dataset) -> Result<()> {
-    let seq_fname = dataset.graph_sequences_fname();
+    let Some(seq_fname) = dataset.graph_sequences_fname() else {
+        eprintln!("Dataset {} has no graph seqeuence set, skipping.", dataset.name());
+        return Ok(())
+    };
+
     let output_fname = dataset.graph_msa_fname(output_dir);
 
     if output_fname.exists() {
-        let seq_meta = fs::metadata(seq_fname)?;
+        let seq_meta = fs::metadata(&seq_fname)?;
         let graph_meta = fs::metadata(&output_fname)?;
 
         if seq_meta.modified()? <= graph_meta.modified()? {
@@ -86,8 +90,8 @@ fn build_graph_with_spoa(output_dir: &Path, dataset: &Dataset) -> Result<()> {
     fs::create_dir_all(dataset.output_dir(output_dir))?;
 
     let process = process::Command::new("spoa")
-        .args(&["-l", "1", "-m", "0", "-n", "-4", "-g", "-8", "-e", "-2", "-q", "0", "-c", "0", "-r", "1"])
-        .arg(dataset.graph_sequences_fname())
+        .args(["-l", "1", "-m", "0", "-n", "-4", "-g", "-8", "-e", "-2", "-q", "0", "-c", "0", "-r", "1"])
+        .arg(&seq_fname)
         .output()
         .context("Could not run SPOA, is it installed and available in $PATH?")?;
 
@@ -107,6 +111,7 @@ fn build_graph_with_spoa(output_dir: &Path, dataset: &Dataset) -> Result<()> {
 
 fn build_graphs(output_dir: &Path, datasets: &[Dataset]) -> Result<()> {
     let results: Vec<_> = datasets.par_iter()
+        .filter(|v| v.cfg().graph_set.is_some())
         .map(|dataset| build_graph_with_spoa(output_dir, dataset))
         .collect();
 
@@ -124,18 +129,29 @@ fn sort_sequences_by_genetic_distance(output_dir: &Path, dataset: &Dataset) -> R
     let output_fname = dataset.combined_sorted_fname(output_dir);
 
     if output_fname.exists() {
-        let graph_seq_meta = fs::metadata(graph_seq_fname)
-            .context("Can't obtain graph sequences FASTA metadata")?;
-        let align_seq_meta = fs::metadata(align_seq_fname)
-            .context("Can't obtain align sequences FASTA metadata")?;
         let output_meta = fs::metadata(output_fname)
             .context("Can't obtain combined and sorted FASTA metadata")?;
-
         let output_modified = output_meta.modified()
             .context("Can't obtain last modified time for combined and sorted FASTA")?;
 
-        if graph_seq_meta.modified()? <= output_modified && align_seq_meta.modified()? <= output_modified {
-            eprintln!("Found up-to-date combined and sorted FASTA for dataset: {}", dataset.name());
+        let mut graph_up_to_date = true;
+        if let Some(ref graph_fname) = graph_seq_fname {
+            let graph_seq_meta = fs::metadata(graph_fname)
+                .context("Can't obtain graph sequences FASTA metadata")?;
+
+            if graph_seq_meta.modified()? > output_modified {
+                eprintln!("Found up-to-date combined and sorted FASTA for dataset: {}",
+                    dataset.name());
+                graph_up_to_date = false;
+            }
+        }
+
+        let align_seq_meta = fs::metadata(&align_seq_fname)
+            .context("Can't obtain align sequences FASTA metadata")?;
+
+        if graph_up_to_date && align_seq_meta.modified()? <= output_modified {
+            eprintln!("Found up-to-date combined and sorted FASTA for dataset: {}",
+                dataset.name());
             return Ok(());
         }
     }
@@ -144,27 +160,59 @@ fn sort_sequences_by_genetic_distance(output_dir: &Path, dataset: &Dataset) -> R
     let fname_without_gz = dataset.combined_sorted_fname(output_dir)
         .with_extension("");
 
-    let process = process::Command::new("poa-bench-tools")
-        .arg("sort_fasta")
-        .arg(dataset.graph_sequences_fname())
-        .arg(dataset.align_sequences_fname())
-        .arg("-o")
-        .arg(&fname_without_gz)
-        .output()
-        .context("Could not sort FASTA file because poa-bench-tools command is not available!")?;
+    let needs_gzip;
+    if !dataset.cfg().is_sorted.unwrap_or(false) {
+        let mut cmd = process::Command::new("poa-bench-tools");
+        cmd.arg("sort_fasta");
 
-    if !process.status.success() {
-        return Err(POABenchError::SortFastaError(String::from_utf8(process.stderr)?).into())
+        if let Some(ref graph_fname) = graph_seq_fname {
+            cmd.arg(graph_fname);
+        }
+
+        let result = cmd
+            .arg(&align_seq_fname)
+            .arg("-o")
+            .arg(&fname_without_gz)
+            .output()
+            .context("Could not sort FASTA file because poa-bench-tools command is not available!")?;
+
+        if !result.status.success() {
+            return Err(POABenchError::SortFastaError(String::from_utf8(result.stderr)?).into())
+        }
+
+        needs_gzip = true;
+    } else if let Some(ref graph_fname) = graph_seq_fname {
+        let output_file = File::create(dataset.combined_sorted_fname(
+            output_dir))?;
+        let output_stdio = process::Stdio::from(output_file);
+        let cmd = process::Command::new("cat")
+            .arg(graph_fname)
+            .arg(&align_seq_fname)
+            .stdout(output_stdio)
+            .output()
+            .context("Could not concatenate graph and align sequences")?;
+
+        if !cmd.status.success() {
+            return Err(POABenchError::SortFastaError(String::from_utf8(cmd.stderr)?).into());
+        }
+
+        needs_gzip = false;
+    } else {
+        std::os::unix::fs::symlink(&align_seq_fname,
+            dataset.combined_sorted_fname(output_dir))?;
+        needs_gzip = false;
     }
 
-    let process = process::Command::new("gzip")
-        .arg("-f")
-        .arg(&fname_without_gz)
-        .output()
-        .context("Could not gzip-compress combined and sorted FASTA!")?;
+    if needs_gzip {
+        let cmd = process::Command::new("gzip")
+            .arg("-f")
+            .arg(&fname_without_gz)
+            .output()
+            .context("Could not gzip-compress combined and sorted FASTA!")?;
 
-    if !process.status.success() {
-        return Err(POABenchError::SortFastaError(String::from_utf8(process.stderr)?).into())
+        if !cmd.status.success() {
+            return Err(POABenchError::SortFastaError(String::from_utf8(cmd.stderr)?).into())
+        }
     }
 
     Ok(())
@@ -224,7 +272,7 @@ where
 
         let reader = BufReader::new(child.stdout.as_mut().unwrap());
 
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             let job_result: serde_json::Result<JobResult> = serde_json::from_str(&line);
             match job_result {
                 Ok(result) => tx.send(result)?,
@@ -252,18 +300,27 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
     create_sorted_fastas(&bench_args.output_dir, &datasets)?;
 
     eprintln!("Building job list...");
-    let algorithms: &[Algorithm] = if bench_args.algorithms.len() > 0 { &bench_args.algorithms } else { jobs::ALL_ALGORITHMS };
-    let benchmarks: &[BenchmarkType] = if bench_args.benchmarks.len() > 0 { &bench_args.benchmarks } else { jobs::ALL_BENCHMARK_TYPES };
+    let algorithms: &[Algorithm] = if !bench_args.algorithms.is_empty() {
+        &bench_args.algorithms
+    } else {
+        jobs::ALL_ALGORITHMS
+    };
+
+    let benchmarks: &[BenchmarkType] = if !bench_args.benchmarks.is_empty() {
+        &bench_args.benchmarks
+    } else {
+        jobs::ALL_BENCHMARK_TYPES
+    };
 
     let mut jobs = Vec::new();
     for algorithm in algorithms {
         for benchmark in benchmarks {
-            if *algorithm == Algorithm::MAFFT && *benchmark == BenchmarkType::SingleSequence {
-                continue;
-            }
-
             for dataset in &datasets {
                 if *benchmark == BenchmarkType::FullMSA && dataset.name().starts_with("synthetic/") {
+                    continue;
+                }
+
+                if *benchmark == BenchmarkType::SingleSequence && dataset.cfg().graph_set.is_none() {
                     continue;
                 }
 
@@ -338,7 +395,7 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
                     num_visited,
                     measured
                 ) => {
-                    tsv_writer_single.write_record(&[
+                    tsv_writer_single.write_record([
                         &dataset,
                         algo.to_str(),
                         &graph_nodes.to_string(),
@@ -356,7 +413,7 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
                     ])?;
                 },
                 JobResult::FullMSAMeasurement(algo, dataset, measured) => {
-                    tsv_writer_msa.write_record(&[
+                    tsv_writer_msa.write_record([
                         &dataset,
                         algo.to_str(),
                         &measured.runtime.to_string(),

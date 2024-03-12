@@ -1,6 +1,6 @@
 use std::sync::mpsc;
 use std::error::Error;
-use std::fmt::{Display, Formatter, write};
+use std::fmt::{Display, Formatter};
 use std::{fmt, io};
 use poasta::errors::PoastaError;
 use std::string::FromUtf8Error;

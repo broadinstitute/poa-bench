@@ -39,8 +39,10 @@ impl Dataset {
         self.output_dir(base_dir).join("all_seq.sorted.fna.gz")
     }
 
-    pub fn graph_sequences_fname(&self) -> PathBuf {
-        self.1.join(&self.2.graph_set.fname)
+    pub fn graph_sequences_fname(&self) -> Option<PathBuf> {
+        self.2.graph_set
+            .as_ref()
+            .map(|v| self.1.join(&v.fname))
     }
 
     pub fn align_sequences_fname(&self) -> PathBuf {
@@ -115,8 +117,9 @@ pub fn load_combined_sorted_sequences(dataset: &Dataset, output_dir: &Path) -> R
 #[derive(Debug, Clone, Deserialize)]
 pub struct DatasetConfig {
     pub clustering_max_dist: Option<f32>,
+    pub is_sorted: Option<bool>,
 
-    pub graph_set: GraphSet,
+    pub graph_set: Option<GraphSet>,
     pub align_set: AlignSet,
 }
 

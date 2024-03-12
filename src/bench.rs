@@ -9,7 +9,6 @@ use std::io::Write;
 
 use chrono::SubsecRound;
 use libc;
-use poasta::aligner::Alignment;
 
 use serde::{Serialize, Deserialize};
 use crate::errors::POABenchError;
