@@ -14,6 +14,7 @@ use poasta::aligner::PoastaAligner;
 use poasta::aligner::scoring::{AlignmentType, GapAffine};
 use noodles::fasta;
 use poasta::bubbles::index::BubbleIndex;
+use poasta::io::graph::save_graph;
 
 use crate::bench;
 use crate::errors::POABenchError;
@@ -44,7 +45,7 @@ fn make_graph_spoa(dataset: &Dataset) -> Result<spoa_rs::Graph, POABenchError> {
         return Err(POABenchError::BuildGraphError(String::from("No graph sequence set filename")))
     };
 
-    let mut reader = File::open(&graph_seq_fname)
+    let mut reader = File::open(graph_seq_fname)
         .map(GzDecoder::new)
         .map(BufReader::new)
         .map(fasta::Reader::new)?;
@@ -146,7 +147,7 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
         let result = JobResult::SingleSeqMeasurement(
             Algorithm::POASTA,
             dataset.name().to_string(),
-            score.into(),
+            score,
             graph_node_count,
             graph_edge_count,
             seq.name().to_string(),
@@ -166,7 +167,11 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
     Ok(())
 }
 
-fn bench_full_msa_poasta(dataset: &Dataset, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+fn bench_full_msa_poasta(
+    dataset: &Dataset,
+    output_dir: &Path,
+    sequences: &[fasta::Record]
+) -> Result<(), POABenchError> {
     let scoring = GapAffine::new(4, 2, 6);
     let aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
 
@@ -202,6 +207,11 @@ fn bench_full_msa_poasta(dataset: &Dataset, sequences: &[fasta::Record]) -> Resu
     };
 
     println!("{}", json);
+
+    // Save graph to file
+    let graph_with_ix = POAGraphWithIx::U32(graph);
+    let mut graph_outfile = File::create(dataset.poasta_msa_output(output_dir))?;
+    save_graph(&graph_with_ix, &mut graph_outfile)?;
 
     Ok(())
 }
@@ -255,7 +265,7 @@ pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
         (Algorithm::POASTA, BenchmarkType::SingleSequence) =>
             bench_single_seq_alignments(&dataset, &worker_args.output_dir, &sequences)?,
         (Algorithm::POASTA, BenchmarkType::FullMSA) =>
-            bench_full_msa_poasta(&dataset, &sequences)?,
+            bench_full_msa_poasta(&dataset, &worker_args.output_dir, &sequences)?,
         (Algorithm::SPOA, BenchmarkType::SingleSequence) => {
             let graph = make_graph_spoa(&dataset)?;
             std::thread::sleep(std::time::Duration::from_secs(1));
