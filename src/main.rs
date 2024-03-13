@@ -202,7 +202,7 @@ fn sort_sequences_by_genetic_distance(output_dir: &Path, dataset: &Dataset) -> R
 
         needs_gzip = false;
     } else {
-        std::os::unix::fs::symlink(&align_seq_fname,
+        std::os::unix::fs::symlink(fs::canonicalize(&align_seq_fname)?,
             dataset.combined_sorted_fname(output_dir))?;
         needs_gzip = false;
     }
@@ -295,7 +295,8 @@ where
 
 fn bench(bench_args: BenchArgs) -> Result<()> {
     eprintln!("Finding data sets...");
-    let datasets = find_datasets(&bench_args.datasets_dir)?;
+    let datasets = find_datasets(&bench_args.datasets_dir,
+        bench_args.include.as_deref())?;
 
     eprintln!("Building graphs...");
     build_graphs(&bench_args.output_dir, &datasets)?;
@@ -320,12 +321,6 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
     for algorithm in algorithms {
         for benchmark in benchmarks {
             for dataset in &datasets {
-                if let Some(ref include_prefix) = bench_args.include {
-                    if !dataset.name().starts_with(include_prefix) {
-                        continue;
-                    }
-                }
-
                 if *benchmark == BenchmarkType::FullMSA && dataset.name().starts_with("synthetic/") {
                     continue;
                 }

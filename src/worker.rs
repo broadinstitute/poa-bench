@@ -189,6 +189,7 @@ fn bench_full_msa_poasta(
                     .align::<u32, _, _>(&graph, seq.sequence());
 
                 graph.add_alignment_with_weights(seq.name(), seq.sequence(), Some(&result.alignment), &weights)?;
+                eprintln!("Aligned {} with score {}", seq.name(), result.score);
             }
         }
 

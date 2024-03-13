@@ -50,7 +50,7 @@ impl Dataset {
     }
 }
 
-pub fn find_datasets(datasets_dir: &Path) -> Result<Vec<Dataset>, POABenchError> {
+pub fn find_datasets(datasets_dir: &Path, include_prefix: Option<&str>) -> Result<Vec<Dataset>, POABenchError> {
     let mut datasets = Vec::new();
     for entry in WalkDir::new(datasets_dir)
         .into_iter()
@@ -67,6 +67,12 @@ pub fn find_datasets(datasets_dir: &Path) -> Result<Vec<Dataset>, POABenchError>
             let dataset_name = dataset_dir
                 .strip_prefix(datasets_dir).unwrap()
                 .to_string_lossy().to_string();
+
+            if let Some(prefix) = include_prefix {
+                if !dataset_name.starts_with(prefix) {
+                    continue;
+                }
+            }
 
             datasets.push(Dataset(dataset_name, dataset_dir.to_owned(), dataset_cfg))
         }
