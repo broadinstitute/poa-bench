@@ -47,6 +47,10 @@ struct BenchArgs {
     #[clap(value_enum, short, long, num_args=0..)]
     benchmarks: Vec<BenchmarkType>,
 
+    /// Only run datasets whose name starts with the given prefix.
+    #[clap(short, long)]
+    include: Option<String>,
+
     /// Number of parallel threads to start. This number will include the main orchestrator
     /// process, so the number of actual worker threads will be one less than the number specified.
     #[clap(short = 'j', long, default_value="2")]
@@ -316,6 +320,12 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
     for algorithm in algorithms {
         for benchmark in benchmarks {
             for dataset in &datasets {
+                if let Some(ref include_prefix) = bench_args.include {
+                    if !dataset.name().starts_with(include_prefix) {
+                        continue;
+                    }
+                }
+
                 if *benchmark == BenchmarkType::FullMSA && dataset.name().starts_with("synthetic/") {
                     continue;
                 }
