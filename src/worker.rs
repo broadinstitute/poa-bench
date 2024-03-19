@@ -179,7 +179,7 @@ fn bench_full_msa_poasta(
     let mut graph: POAGraph<u32> = POAGraph::new();
 
     let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
-        for seq in sequences {
+        for (i, seq) in sequences.iter().enumerate() {
             let weights: Vec<usize> = vec![1; seq.sequence().len()];
 
             if graph.is_empty() {
@@ -189,7 +189,7 @@ fn bench_full_msa_poasta(
                     .align::<u32, _, _>(&graph, seq.sequence());
 
                 graph.add_alignment_with_weights(seq.name(), seq.sequence(), Some(&result.alignment), &weights)?;
-                eprintln!("Aligned {} with score {}", seq.name(), result.score);
+                eprintln!("Aligned #{} {} with score {}", i+1, seq.name(), result.score);
             }
         }
 

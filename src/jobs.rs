@@ -62,5 +62,5 @@ pub enum JobResult {
     Finished(Option<usize>),
 
     /// Variant to indicate that a worker did not properly exit correctly
-    Error,
+    Error(Algorithm, String),
 }

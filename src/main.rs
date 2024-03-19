@@ -285,7 +285,7 @@ where
         }
 
         if !child.wait().expect("Could not launch worker!").success() {
-            tx.send(JobResult::Error)?
+            tx.send(JobResult::Error(algorithm, dataset.name().to_string()))?
         }
 
         Ok::<(), POABenchError>(())
@@ -385,6 +385,7 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
         }
 
         // Receive results, and start new jobs when another finishes
+        let mut num_error = 0;
         for result in rx {
             eprintln!("Got result: {:?}", result);
 
@@ -441,9 +442,14 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
                         );
                     }
                 },
-                JobResult::Error => {
-                    return Err(POABenchError::WorkerError.into());
+                JobResult::Error(algo, dataset) => {
+                    eprintln!("Error running benchmark {algo:?}, {dataset}");
+                    num_error += 1;
                 }
+            }
+
+            if num_error > 0 {
+                eprintln!("WARNING! {num_error} benchmarks failed to finish!");
             }
         }
 
