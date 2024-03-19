@@ -78,6 +78,7 @@ pub fn find_datasets(datasets_dir: &Path, include_prefix: Option<&str>) -> Resul
         }
     }
 
+    datasets.sort_by(|a, b| a.name().cmp(b.name()));
     Ok(datasets)
 }
 
