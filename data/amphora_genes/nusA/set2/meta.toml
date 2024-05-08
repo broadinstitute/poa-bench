@@ -1,0 +1,50 @@
+clustering_max_dist = 0.1
+
+[graph_set]
+fname = "graph_seq.fna.gz"
+num_seqs = 5
+avg_seq_len = 1488.0
+avg_pairwise_dist = 0.0536037
+
+[graph_set.species]
+"Vibrio natriegens" = 1
+"Vibrio owensii" = 1
+"Vibrio campbellii ATCC BAA-1116" = 1
+"Vibrio parahaemolyticus" = 1
+"Vibrio campbellii" = 1
+
+[align_set]
+fname = "align_seq.fna.gz"
+num_seqs = 154
+avg_seq_len = 1487.8
+avg_pairwise_dist = 0.0684895
+avg_min_dist_to_graph = 0.00248898
+
+[align_set.species]
+"Vibrio parahaemolyticus" = 69
+"Vibrio alginolyticus" = 21
+"Vibrio campbellii" = 14
+"Vibrio harveyi" = 13
+"Vibrio diabolicus" = 7
+"Vibrio natriegens" = 4
+"Vibrio owensii" = 4
+"Vibrio sp. B1FIG11" = 2
+"Vibrio sp. B1FLJ16" = 2
+"Vibrio rotiferianus" = 1
+"Vibrio sp. SCSIO 43155" = 1
+"Vibrio sp. STUT-A16" = 1
+"Vibrio antiquarius" = 1
+"Vibrio sp. STUT-A11" = 1
+"Vibrio parahaemolyticus O1:Kuk str. FDA_R31" = 1
+"Vibrio natriegens NBRC 15636 = ATCC 14048 = DSM 759" = 1
+"Vibrio jasicida 090810c" = 1
+"Vibrio sp. dhg" = 1
+"Vibrio hyugaensis" = 1
+"Vibrio sp. B1ASS3" = 1
+"Vibrio campbellii CAIM 519 = NBRC 15631 = ATCC 25920" = 1
+"Vibrio sp. SCSIO 43153" = 1
+"Vibrio parahaemolyticus BB22OP" = 1
+"Vibrio sp. EJY3" = 1
+"Vibrio sp. SCSIO 43097" = 1
+"Vibrio sp. ED002" = 1
+"Vibrio parahaemolyticus O1:K33 str. CDC_K4557" = 1

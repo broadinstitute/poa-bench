@@ -5,3 +5,5 @@
 __pycache__
 debug_out
 *.egg-info
+data/**/all_seq.fna.gz
+data/**/supp_table.tsv

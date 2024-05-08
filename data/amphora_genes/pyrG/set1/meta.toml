@@ -1,0 +1,97 @@
+clustering_max_dist = 0.1
+
+[graph_set]
+fname = "graph_seq.fna.gz"
+num_seqs = 50
+avg_seq_len = 1608.0
+avg_pairwise_dist = 0.0345649
+
+[graph_set.species]
+"Bacillus cereus" = 12
+"Bacillus thuringiensis" = 5
+"Bacillus mycoides" = 4
+"Bacillus toyonensis" = 4
+"Bacillus paranthracis" = 2
+"Bacillus sp. RZ2MS9" = 1
+"Bacillus sp. CR71" = 1
+"Bacillus luti" = 1
+"Bacillus thuringiensis serovar monterrey BGSC 4AJ1" = 1
+"Bacillus sp. HBCD-sjtu" = 1
+"Bacillus cereus BDRD-ST24" = 1
+"Bacillus wiedmannii" = 1
+"Bacillus thuringiensis serovar pakistani str. T13001" = 1
+"Bacillus pseudomycoides" = 1
+"Bacillus anthracis" = 1
+"Bacillus arachidis" = 1
+"Bacillus cereus biovar anthracis str. CI" = 1
+"Bacillus cereus E33L" = 1
+"Bacillus thuringiensis Bt18247" = 1
+"Bacillus mobilis" = 1
+"Bacillus tropicus" = 1
+"Bacillus thuringiensis serovar alesti" = 1
+"Bacillus cereus ATCC 10876" = 1
+"Bacillus sp. HNR-4" = 1
+"Bacillus cereus F837/76" = 1
+"Bacillus cereus Rock3-42" = 1
+"Bacillus thuringiensis LM1212" = 1
+"Bacillus albus" = 1
+
+[align_set]
+fname = "align_seq.fna.gz"
+num_seqs = 129
+avg_seq_len = 1598.4
+avg_pairwise_dist = 0.0391035
+avg_min_dist_to_graph = 0.0038928
+
+[align_set.species]
+"Bacillus cereus" = 35
+"Bacillus mycoides" = 18
+"Bacillus thuringiensis" = 10
+"Bacillus paranthracis" = 5
+"Bacillus wiedmannii" = 5
+"Bacillus toyonensis" = 5
+"Bacillus anthracis" = 4
+"Bacillus tropicus" = 2
+"Bacillus cytotoxicus" = 2
+"Bacillus nitratireducens" = 2
+"Bacillus cereus 95/8201" = 1
+"Bacillus sp. N5-665" = 1
+"Bacillus cereus AH1271" = 1
+"Bacillus thuringiensis serovar kurstaki str. HD-1" = 1
+"Alcanivorax sp. N3-2A" = 1
+"Bacillus sp. JAS24-2" = 1
+"Bacillus sp. DU-106" = 1
+"Bacillus cereus 172560W" = 1
+"Bacillus thuringiensis serovar pulsiensis BGSC 4CC1" = 1
+"Bacillus thuringiensis BMB171" = 1
+"Bacillus sp. SYJ" = 1
+"Bacillus pseudomycoides" = 1
+"Bacillus sp. A260" = 1
+"Bacillus sp. 41-22" = 1
+"Bacillus sp. ABP14" = 1
+"Bacillus thuringiensis serovar tenebrionis" = 1
+"Bacillus thuringiensis IBL 200" = 1
+"Bacillus mycoides KBAB4" = 1
+"Bacillus mycoides DSM 2048" = 1
+"Bacillus sp. BD59S" = 1
+"Bacillus sp. NP247" = 1
+"Bacillus sp. PGP15" = 1
+"Bacillus sp. B25(2016b)" = 1
+"Bacillus thuringiensis DAR 81934" = 1
+"Bacillus cereus ATCC 10987" = 1
+"Bacillus cereus BDRD-ST196" = 1
+"Bacillus cereus FRI-35" = 1
+"Bacillus thuringiensis serovar andalousiensis BGSC 4AW1" = 1
+"Bacillus thuringiensis serovar thuringiensis str. T01001" = 1
+"Bacillus sp. DX3.1" = 1
+"Bacillus thuringiensis YBT-1518" = 1
+"Bacillus cereus AH1273" = 1
+"Bacillus albus" = 1
+"Bacillus sp. ZJS3" = 1
+"Bacillus cereus m1550" = 1
+"Bacillus cereus F" = 1
+"Bacillus pseudomycoides DSM 12442" = 1
+"Bacillus pacificus" = 1
+"Bacillus sp. COPE52" = 1
+"Bacillus thuringiensis serovar andalousiensis" = 1
+"Bacillus cereus Rock3-44" = 1

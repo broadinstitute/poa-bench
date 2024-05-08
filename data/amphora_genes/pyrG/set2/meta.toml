@@ -1,0 +1,69 @@
+clustering_max_dist = 0.1
+
+[graph_set]
+fname = "graph_seq.fna.gz"
+num_seqs = 50
+avg_seq_len = 1617.0
+avg_pairwise_dist = 0.0247191
+
+[graph_set.species]
+"Helicobacter pylori" = 39
+"Helicobacter pylori Puno135" = 1
+"Helicobacter pylori UM066" = 1
+"Helicobacter pylori oki112" = 1
+"Helicobacter pylori Shi470" = 1
+"Helicobacter pylori ELS37" = 1
+"Helicobacter pylori F16" = 1
+"Helicobacter pylori F32" = 1
+"Helicobacter pylori Puno120" = 1
+"Helicobacter pylori NY40" = 1
+"Helicobacter pylori F30" = 1
+"Helicobacter pylori Shi417" = 1
+
+[align_set]
+fname = "align_seq.fna.gz"
+num_seqs = 265
+avg_seq_len = 1617.0
+avg_pairwise_dist = 0.0271986
+avg_min_dist_to_graph = 0.0126674
+
+[align_set.species]
+"Helicobacter pylori" = 227
+"Helicobacter pylori B38" = 1
+"Helicobacter pylori HPAG1" = 1
+"Helicobacter pylori UM299" = 1
+"Helicobacter pylori BM012S" = 1
+"Helicobacter pylori Shi169" = 1
+"Helicobacter pylori oki422" = 1
+"Helicobacter acinonychis str. Sheeba" = 1
+"Helicobacter pylori Aklavik86" = 1
+"Helicobacter pylori P12" = 1
+"Helicobacter pylori HUP-B14" = 1
+"Helicobacter pylori Lithuania75" = 1
+"Helicobacter pylori PMSS1" = 1
+"Helicobacter pylori oki128" = 1
+"Helicobacter pylori PeCan18" = 1
+"Helicobacter pylori Sat464" = 1
+"Helicobacter pylori PeCan4" = 1
+"Helicobacter pylori SJM180" = 1
+"Helicobacter pylori UM037" = 1
+"Helicobacter pylori 35A" = 1
+"Helicobacter pylori OK310" = 1
+"Helicobacter pylori oki102" = 1
+"Helicobacter pylori Gambia94/24" = 1
+"Helicobacter pylori oki154" = 1
+"Helicobacter pylori Cuz20" = 1
+"Helicobacter pylori J166" = 1
+"Helicobacter pylori OK113" = 1
+"Helicobacter pylori oki673" = 1
+"Helicobacter pylori 52" = 1
+"Helicobacter pylori SNT49" = 1
+"Helicobacter pylori SouthAfrica7" = 1
+"Helicobacter pylori 83" = 1
+"Helicobacter pylori 51" = 1
+"Helicobacter pylori v225d" = 1
+"Helicobacter pylori India7" = 1
+"Helicobacter pylori Aklavik117" = 1
+"Helicobacter pylori oki828" = 1
+"Helicobacter pylori F57" = 1
+"Helicobacter pylori oki898" = 1
