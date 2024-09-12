@@ -3,7 +3,7 @@
 
 <p>&nbsp;</p>
 
-POA-bench is a tool to benchmark partial order aligners. We constructed multiple datasets from bacterial housekeeping 
+POA-bench is a tool to benchmark partial order aligners. We constructed multiple datasets from bacterial housekeeping
 genes, the human HLA locus, and others, with varying graph sizes and sequence diversity. POA-bench assesses the
 runtime, throughput and memory usage of multiple partial order alignment tools. POA-bench uses thin wrappers around
 each tool's internal `align` function and thus benchmarks only the time spent aligning sequence, and not anything I/O or
@@ -39,9 +39,9 @@ minimum supported Rust version is 1.70.
    git clone https://github.com/broadinstitute/poa-bench
    ```
 
-2. Clone `poasta`, a dependency for `poa-bench` that should reside in the same folder, which is not yet publicly 
+2. Clone `poasta`, a dependency for `poa-bench` that should reside in the same folder, which is not yet publicly
    available.
- 
+
    ```bash
    git clone https://github.com/broadinstitute/poasta
    ```
@@ -82,9 +82,9 @@ The following additional tools should be available in your `$PATH`:
 
 ## Datasets
 
-Datasets are defined by a TOML configuration files named `meta.toml`. See the data/ directory for a number of examples. Each 
-dataset comprises a set of sequences used to construct a graph, and a set of sequences used to benchmark alignment to the 
-constructed graph. Each FASTA with sequences **must** be compressed with gzip. 
+Datasets are defined by a TOML configuration files named `meta.toml`. See the data/ directory for a number of examples. Each
+dataset comprises a set of sequences used to construct a graph, and a set of sequences used to benchmark alignment to the
+constructed graph. Each FASTA with sequences **must** be compressed with gzip.
 To define which sequences to use, specify it as follows in the TOML file:
 
 ```toml
@@ -100,11 +100,11 @@ The above fields are the only mandatory fields in the TOML file, but you can add
 ## Running benchmarks
 
 To run benchmarks, invoke `poa-bench bench`. This will run the benchmarks for all supported algorithms on all data sets.
-To find datasets, it will recursively search a directory `data/` in the current 
+To find datasets, it will recursively search a directory `data/` in the current
 working directory to find dataset configuration files. Each combination of a dataset and algorithm
 is a single job, and `poa-bench` will spawn a new worker process that will perform the benchmark for that job.
 To reduce variance in benchmarks, each worker process gets pinned to a specific core. If requested, `poa-bench`
-can run multiple jobs in parallel, using the `-j` option. All output files and results are written to a directory 
+can run multiple jobs in parallel, using the `-j` option. All output files and results are written to a directory
 `output/`. The algorithms to run, and the input/output directories are configurable on the command line.
 
 ```
@@ -121,7 +121,7 @@ Options:
 
 ## Acknowledgements
 
-This program is inspired (and shares some code with) the excellent [pa-bench](https://github.com/pairwise-alignment/pa-bench) 
+This program is inspired (and shares some code with) the excellent [pa-bench](https://github.com/pairwise-alignment/pa-bench)
 repository.
 
 ## Related repositories
@@ -130,4 +130,6 @@ repository.
 * [poasta](https://github.com/broadinstitute/poasta) - POASTA aligner
 * [spoa](https://github.com/rvaser/spoa) - SIMD partial order aligner
 * [spoa-rs](https://github.com/broadinstitute/spoa-rs) - Rust bindings to SPOA
+* [abPOA](https://github.com/yangao07/abPOA) - adaptive band partial order aligner
+* [spoa-rs](https://github.com/broadinstitute/abpoa-rs) - Rust bindings to abPOA
 
