@@ -131,5 +131,5 @@ repository.
 * [spoa](https://github.com/rvaser/spoa) - SIMD partial order aligner
 * [spoa-rs](https://github.com/broadinstitute/spoa-rs) - Rust bindings to SPOA
 * [abPOA](https://github.com/yangao07/abPOA) - adaptive band partial order aligner
-* [spoa-rs](https://github.com/broadinstitute/abpoa-rs) - Rust bindings to abPOA
+* [abpoa-rs](https://github.com/broadinstitute/abpoa-rs) - Rust bindings to abPOA
 
