@@ -67,6 +67,14 @@ fn make_graph_spoa(dataset: &Dataset) -> Result<spoa_rs::Graph, POABenchError> {
     Ok(graph)
 }
 
+
+fn make_graph_abpoa(dataset: &Dataset, output_dir: &Path) -> Result<abpoa_rs::Graph, POABenchError> {
+    eprintln!("Loading abPOA graph for {:?}...", dataset.name());
+    let graph_seq_fname = dataset.graph_msa_fname(output_dir);
+
+    Ok(abpoa_rs::Graph::from_file(&graph_seq_fname, false))
+}
+
 fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
     eprintln!("Performing alignments with SPOA for {:?}...", dataset.name());
     bench::reset_max_rss()?;
@@ -97,6 +105,53 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
             num_visited,
             measured
         );
+        let json = match serde_json::to_string(&result) {
+            Ok(v) => v,
+            Err(e) => return Err(POABenchError::JSONError(e))
+        };
+
+        println!("{}", json)
+    }
+
+    Ok(())
+}
+
+fn perform_alignments_abpoa(dataset: &Dataset, graph: &mut abpoa_rs::Graph, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+    eprintln!("Performing alignments with abPOA for {:?}...", dataset.name());
+    bench::reset_max_rss()?;
+
+    let memory_start = bench::get_maxrss();
+    let graph_node_count = graph.num_nodes() - 2;
+    let graph_edge_count = 0;
+
+    let aln_params = abpoa_rs::AlignmentParametersBuilder::new()
+        .alignment_mode(abpoa_rs::AlignmentMode::Global)
+        .gap_affine_penalties(0, 4, 6, 2)
+        .verbosity(abpoa_rs::Verbosity::None)
+        .build();
+
+    for seq in sequences {
+        let (measured, (score, _)) = bench::measure(memory_start, || {
+            let result = graph.align_sequence(
+                &aln_params,
+                seq.sequence().as_ref(),
+            ).unwrap();
+
+            (-result.get_best_score() as usize, result)
+        })?;
+
+        let result = JobResult::SingleSeqMeasurement(
+            Algorithm::abPOA,
+            dataset.name().to_string(),
+            score,
+            graph_node_count,
+            graph_edge_count,
+            seq.name().to_string(),
+            seq.sequence().len(),
+            0,
+            measured
+        );
+
         let json = match serde_json::to_string(&result) {
             Ok(v) => v,
             Err(e) => return Err(POABenchError::JSONError(e))
@@ -225,7 +280,7 @@ fn bench_full_msa_spoa(dataset: &Dataset, sequences: &[fasta::Record]) -> Result
 
     let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
         for record in sequences {
-            let seq = std::str::from_utf8(record.sequence().as_ref())?;
+            let seq = unsafe { std::str::from_utf8_unchecked(record.sequence().as_ref()) };
             let (_, aln) = engine.align(seq, &graph);
 
             graph.add_alignment(aln, seq);
@@ -236,6 +291,49 @@ fn bench_full_msa_spoa(dataset: &Dataset, sequences: &[fasta::Record]) -> Result
 
     let result = JobResult::FullMSAMeasurement(
         Algorithm::SPOA,
+        dataset.name().to_string(),
+        measured
+    );
+
+    let json = match serde_json::to_string(&result) {
+        Ok(v) => v,
+        Err(e) => return Err(POABenchError::JSONError(e))
+    };
+
+    println!("{}", json);
+
+    Ok(())
+}
+
+fn bench_full_msa_abpoa(dataset: &Dataset, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+    let seqs: Vec<_> = sequences.iter()
+        .map(|s| s.sequence().as_ref())
+        .collect();
+    let weights: Vec<_> = sequences.iter()
+        .map(|s| vec![1; s.sequence().len()])
+        .collect();
+    let names: Vec<_> = sequences.iter()
+        .map(|s| s.name().as_bytes())
+        .collect();
+
+    let memory_start = bench::get_maxrss();
+
+    let aln_params = abpoa_rs::AlignmentParametersBuilder::new()
+        .alignment_mode(abpoa_rs::AlignmentMode::Global)
+        .gap_affine_penalties(0, 4, 6, 2)
+        .verbosity(abpoa_rs::Verbosity::None)
+        .build();
+
+    let mut graph = abpoa_rs::Graph::new(&aln_params);
+
+    let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
+        let _ = graph.align_and_add_multiple(&aln_params, &seqs, &weights, &names).unwrap();
+
+        Ok(())
+    })?;
+
+    let result = JobResult::FullMSAMeasurement(
+        Algorithm::abPOA,
         dataset.name().to_string(),
         measured
     );
@@ -275,6 +373,14 @@ pub fn main(worker_args: WorkerArgs) -> Result<(), POABenchError> {
         },
         (Algorithm::SPOA, BenchmarkType::FullMSA) =>
             bench_full_msa_spoa(&dataset, &sequences)?,
+        (Algorithm::abPOA, BenchmarkType::SingleSequence) => {
+            let mut graph = make_graph_abpoa(&dataset, &worker_args.output_dir)?;
+            std::thread::sleep(std::time::Duration::from_secs(1));
+
+            perform_alignments_abpoa(&dataset, &mut graph, &sequences)?;
+        },
+        (Algorithm::abPOA, BenchmarkType::FullMSA) =>
+            bench_full_msa_abpoa(&dataset, &sequences)?,
     }
 
     let finished = JobResult::Finished(worker_args.core_id);

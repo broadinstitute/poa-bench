@@ -6,6 +6,7 @@ use crate::bench::Measured;
 pub enum Algorithm {
     POASTA,
     SPOA,
+    abPOA,
 }
 
 impl Algorithm {
@@ -13,6 +14,7 @@ impl Algorithm {
         match self {
             Self::POASTA => "poasta",
             Self::SPOA => "spoa",
+            Self::abPOA => "ab-poa",
         }
     }
 }
@@ -61,6 +63,7 @@ pub enum JobResult {
     /// processor core is now free
     Finished(Option<usize>),
 
-    /// Variant to indicate that a worker did not properly exit correctly
-    Error(Algorithm, String),
+    /// Variant to indicate that a worker did not properly exit correctly. Last field is the core
+    /// used for the job, which is now free again.
+    Error(Algorithm, String, Option<usize>),
 }

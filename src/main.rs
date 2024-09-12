@@ -285,7 +285,7 @@ where
         }
 
         if !child.wait().expect("Could not launch worker!").success() {
-            tx.send(JobResult::Error(algorithm, dataset.name().to_string()))?
+            tx.send(JobResult::Error(algorithm, dataset.name().to_string(), core.map(|v| v.id)))?
         }
 
         Ok::<(), POABenchError>(())
@@ -442,15 +442,23 @@ fn bench(bench_args: BenchArgs) -> Result<()> {
                         );
                     }
                 },
-                JobResult::Error(algo, dataset) => {
+                JobResult::Error(algo, dataset, core) => {
                     eprintln!("Error running benchmark {algo:?}, {dataset}");
                     num_error += 1;
+
+                    if let Some(((algorithm, benchmark, dataset), job_tx)) = job_iter.next() {
+                        run_job(
+                            scope, &proc_exe, &bench_args.datasets_dir, &bench_args.output_dir,
+                            *algorithm, *benchmark, dataset, core.map(|v| CoreId { id: v }),
+                            job_tx
+                        );
+                    }
                 }
             }
+        }
 
-            if num_error > 0 {
-                eprintln!("WARNING! {num_error} benchmarks failed to finish!");
-            }
+        if num_error > 0 {
+            eprintln!("WARNING! {num_error} benchmarks failed to finish!");
         }
 
         Ok(())
