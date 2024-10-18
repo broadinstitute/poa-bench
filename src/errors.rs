@@ -2,7 +2,7 @@ use std::sync::mpsc;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::{fmt, io};
-use poasta::errors::PoastaError;
+use poasta::errors::{GraphError, PoastaError, PoastaIOError};
 use std::string::FromUtf8Error;
 use crate::jobs::JobResult;
 
@@ -14,12 +14,12 @@ pub enum POABenchError {
     BuildGraphError(String),
     SortFastaError(String),
     PoastaError(PoastaError),
+    PoastaIOError(PoastaIOError),
     JSONError(serde_json::Error),
     ParseConfigError(toml::de::Error),
     WorkerError,
     MemoryResetError,
     TSVError(csv::Error),
-    MAFFTError,
 }
 
 impl Error for POABenchError {
@@ -31,12 +31,12 @@ impl Error for POABenchError {
             Self::BuildGraphError(_) => None,
             Self::SortFastaError(_) => None,
             Self::PoastaError(source) => Some(source),
+            Self::PoastaIOError(source) => Some(source),
             Self::JSONError(source) => Some(source),
             Self::ParseConfigError(source) => Some(source),
             Self::WorkerError => None,
             Self::MemoryResetError => None,
             Self::TSVError(source) => Some(source),
-            Self::MAFFTError => None,
         }
     }
 }
@@ -56,6 +56,8 @@ impl Display for POABenchError {
                 write!(f, "Could not create sorted and combined FASTA! Stderr: {}", stderr),
             Self::PoastaError(source) =>
                 fmt::Display::fmt(source, f),
+            Self::PoastaIOError(source) =>
+                fmt::Display::fmt(source, f),
             Self::JSONError(source) => {
                 write!(f, "Could not parse job result: ")?;
                 fmt::Display::fmt(source, f)
@@ -70,7 +72,6 @@ impl Display for POABenchError {
                 write!(f, "Could not write results to TSV! ")?;
                 fmt::Display::fmt(source, f)
             },
-            Self::MAFFTError => write!(f, "MAFFT finished with non-zero exit code!")
         }
     }
 }
@@ -120,5 +121,20 @@ impl From<toml::de::Error> for POABenchError {
 impl From<csv::Error> for POABenchError {
     fn from(value: csv::Error) -> Self {
         Self::TSVError(value)
+    }
+}
+
+impl From<poasta::errors::PoastaIOError> for POABenchError {
+    fn from(value: poasta::errors::PoastaIOError) -> Self {
+        Self::PoastaIOError(value)
+    }
+}
+
+impl<Ix> From<GraphError<Ix>> for POABenchError
+where
+    Ix: poasta::graph::poa::IndexType
+{
+    fn from(_: GraphError<Ix>) -> Self {
+        Self::PoastaError(PoastaError::AlignmentError)
     }
 }

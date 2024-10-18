@@ -1,20 +1,19 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 
 use anyhow::Result;
 use clap::Args;
 use core_affinity::CoreId;
 use flate2::read::GzDecoder;
-use poasta::aligner::config::AffineMinGapCost;
-use poasta::graphs::AlignableRefGraph;
-use poasta::graphs::poa::{POAGraph, POAGraphWithIx};
-use poasta::aligner::PoastaAligner;
-use poasta::aligner::scoring::{AlignmentType, GapAffine};
 use noodles::fasta;
-use poasta::bubbles::index::BubbleIndex;
-use poasta::io::graph::save_graph;
+
+use poasta::aligner::astar::heuristic::Dijkstra;
+use poasta::aligner::astar::AlignableGraph;
+use poasta::aligner::cost_models::affine::Affine;
+use poasta::aligner::{AlignmentMode, GraphAligner, PoastaAligner};
+use poasta::graph::io::dot::graph_to_dot;
+use poasta::graph::poa::POASeqGraph;
 
 use crate::bench;
 use crate::errors::POABenchError;
@@ -100,7 +99,7 @@ fn perform_alignments_spoa(dataset: &Dataset, graph: &spoa_rs::Graph, sequences:
             score,
             graph_node_count,
             graph_edge_count,
-            seq.name().to_string(),
+            unsafe { String::from_utf8_unchecked(seq.name().to_vec()) },
             seq.sequence().len(),
             num_visited,
             measured
@@ -146,7 +145,7 @@ fn perform_alignments_abpoa(dataset: &Dataset, graph: &mut abpoa_rs::Graph, sequ
             score,
             graph_node_count,
             graph_edge_count,
-            seq.name().to_string(),
+            unsafe { String::from_utf8_unchecked(seq.name().to_vec()) },
             seq.sequence().len(),
             0,
             measured
@@ -164,39 +163,28 @@ fn perform_alignments_abpoa(dataset: &Dataset, graph: &mut abpoa_rs::Graph, sequ
 }
 
 fn bench_single_seq_alignments(dataset: &Dataset, output_dir: &Path, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
-    let graph = poasta::io::load_graph_from_fasta_msa(dataset.graph_msa_fname(output_dir))?;
+    let mut msa_file = File::open(dataset.graph_msa_fname(output_dir))
+        .map(BufReader::new)?;
 
-    match graph {
-        POAGraphWithIx::U8(ref g) =>
-            perform_alignments_poasta(dataset, g, sequences),
-        POAGraphWithIx::U16(ref g) =>
-            perform_alignments_poasta(dataset, g, sequences),
-        POAGraphWithIx::U32(ref g) =>
-            perform_alignments_poasta(dataset, g, sequences),
-        POAGraphWithIx::USIZE(ref g) =>
-            perform_alignments_poasta(dataset, g, sequences),
+    let graph = POASeqGraph::<u32>::try_from_fasta_msa(&mut msa_file)?;
 
-    }
+    perform_alignments_poasta(dataset, &graph, sequences)
 }
 
 
-fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
-    let bubbles = Rc::new(BubbleIndex::new(graph));
-
-    let scoring = GapAffine::new(4, 2, 6);
-    let aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
+fn perform_alignments_poasta<G: AlignableGraph>(dataset: &Dataset, graph: &G, sequences: &[fasta::Record]) -> Result<(), POABenchError> {
+    let cost_model = Affine::new(4, 6, 2);
+    let aligner = PoastaAligner::<Dijkstra, i32, u32, _, _>::new(cost_model);
 
     let memory_start = bench::get_maxrss();
     let graph_node_count = graph.node_count();
-    let graph_edge_count = graph.edge_count();
 
     for seq in sequences {
-        let bubbles_for_aln = bubbles.clone();
-        let (measured, (score, _, num_visited)) = bench::measure(memory_start, || {
+        let (measured, (score, num_visited)) = bench::measure(memory_start, || {
             let result = aligner
-                .align_with_existing_bubbles::<u32, _, _>(graph, seq.sequence(), bubbles_for_aln);
+                .align(graph, seq.sequence().as_ref(), AlignmentMode::Global).unwrap();
 
-            (u32::from(result.score) as usize, result.alignment, result.num_visited)
+            (result.score.as_usize(), result.num_visited)
         })?;
 
         let result = JobResult::SingleSeqMeasurement(
@@ -204,8 +192,8 @@ fn perform_alignments_poasta<G: AlignableRefGraph>(dataset: &Dataset, graph: &G,
             dataset.name().to_string(),
             score,
             graph_node_count,
-            graph_edge_count,
-            seq.name().to_string(),
+            0,
+            unsafe { String::from_utf8_unchecked(seq.name().to_vec()) },
             seq.sequence().len(),
             num_visited,
             measured
@@ -227,24 +215,24 @@ fn bench_full_msa_poasta(
     output_dir: &Path,
     sequences: &[fasta::Record]
 ) -> Result<(), POABenchError> {
-    let scoring = GapAffine::new(4, 2, 6);
-    let aligner = PoastaAligner::new(AffineMinGapCost(scoring), AlignmentType::Global);
+    let aligner = PoastaAligner::<Dijkstra, i32, u32, _, _>::new(Affine::new(4, 6, 2));
 
     let memory_start = bench::get_maxrss();
-    let mut graph: POAGraph<u32> = POAGraph::new();
+    let mut graph = POASeqGraph::<u32>::new();
 
     let (measured, _) = bench::measure(memory_start, || -> Result<(), POABenchError> {
         for (i, seq) in sequences.iter().enumerate() {
             let weights: Vec<usize> = vec![1; seq.sequence().len()];
 
+            let seq_name = unsafe { std::str::from_utf8_unchecked(seq.name()) };
             if graph.is_empty() {
-                graph.add_alignment_with_weights(seq.name(), seq.sequence(), None, &weights)?;
+                graph.add_aligned_sequence(seq_name, seq.sequence(), &weights, None)?;
             } else {
                 let result = aligner
-                    .align::<u32, _, _>(&graph, seq.sequence());
+                    .align(&graph, seq.sequence(), AlignmentMode::Global)?;
 
-                graph.add_alignment_with_weights(seq.name(), seq.sequence(), Some(&result.alignment), &weights)?;
-                eprintln!("Aligned #{} {} with score {}", i+1, seq.name(), result.score);
+                graph.add_aligned_sequence(seq_name, seq.sequence(), &weights, Some(&result.alignment))?;
+                eprintln!("Aligned #{} {} with score {}", i+1, seq_name, result.score.as_usize());
             }
         }
 
@@ -265,9 +253,8 @@ fn bench_full_msa_poasta(
     println!("{}", json);
 
     // Save graph to file
-    let graph_with_ix = POAGraphWithIx::U32(graph);
     let mut graph_outfile = File::create(dataset.poasta_msa_output(output_dir))?;
-    save_graph(&graph_with_ix, &mut graph_outfile)?;
+    graph_to_dot(&mut graph_outfile, &graph)?;
 
     Ok(())
 }
@@ -313,7 +300,7 @@ fn bench_full_msa_abpoa(dataset: &Dataset, sequences: &[fasta::Record]) -> Resul
         .map(|s| vec![1; s.sequence().len()])
         .collect();
     let names: Vec<_> = sequences.iter()
-        .map(|s| s.name().as_bytes())
+        .map(|s| s.name())
         .collect();
 
     let memory_start = bench::get_maxrss();

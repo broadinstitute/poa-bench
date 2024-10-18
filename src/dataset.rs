@@ -28,7 +28,7 @@ impl Dataset {
     }
 
     pub fn poasta_msa_output(&self, base_dir: &Path) -> PathBuf {
-        self.output_dir(base_dir).join("full_msa.poasta")
+        self.output_dir(base_dir).join("full_msa.dot")
     }
 
     pub fn graph_msa_fname(&self, base_dir: &Path) -> PathBuf {
